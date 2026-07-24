@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Quiz - Freestylers Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --card: #0d0d0d;
+            --primary: #c3a6ff;
+            --danger: #ff4444;
+            --success: #50fa7b;
+            --accent: #ff79c6;
+            --text: #ffffff;
+            --dim: #555;
+        }
+
+        * { box-sizing: border-box; font-family: 'Quicksand', sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--text);
+            overflow-x: hidden;
+            transition: box-shadow 0.5s ease;
+        }
+
+        body.critical-mode {
+            box-shadow: inset 0 0 150px rgba(255, 68, 68, 0.4);
+        }
+
+        .ai-warning {
+            background: #1a1a1a;
+            color: #888;
+            padding: 5px 15px;
+            font-size: 0.75rem;
+            border-radius: 0 0 10px 15px;
+            position: fixed; top: 0; z-index: 2000;
+        }
+
+        #game-box {
+            background: var(--card);
+            width: 90%;
+            max-width: 420px;
+            padding: 2rem;
+            border-radius: 40px;
+            border: 1px solid #1a1a1a;
+            text-align: center;
+            position: relative;
+            margin: 20px 0;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--card);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 40px;
+            padding: 1.5rem;
+        }
+
+        .stats { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: 700; }
+        .badge { background: #111; padding: 6px 12px; border-radius: 15px; border: 1px solid #222; font-size: 0.8rem; }
+
+        #timer-container {
+            width: 100%; height: 6px; background: #111;
+            border-radius: 10px; margin-bottom: 25px; overflow: hidden;
+        }
+        #timer-bar { width: 100%; height: 100%; background: var(--primary); transition: width 0.1s linear; }
+
+        #emoji-display { font-size: 3.2rem; margin: 15px 0; min-height: 100px; display: flex; align-items: center; justify-content: center; }
+
+        input {
+            width: 100%; padding: 16px; border-radius: 20px; border: 2px solid #333;
+            background: #000; color: white; font-size: 1.1rem; text-align: center;
+            margin-bottom: 15px; outline: none; transition: border 0.3s;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .btn { width: 100%; padding: 16px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-main { background: var(--primary); color: #000; }
+        .btn-main:disabled { background: #1a1a1a; color: #333; cursor: not-allowed; }
+        .btn-shop { background: var(--accent); color: #000; margin-top: 10px; }
+        .btn-ghost { background: transparent; color: var(--dim); margin-top: 10px; font-size: 0.8rem; }
+
+        #results-list {
+            width: 100%;
+            max-height: 250px;
+            overflow-y: auto;
+            margin: 15px 0;
+            padding-right: 5px;
+            text-align: left;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px solid #222;
+            font-size: 0.85rem;
+        }
+        .res-ok { color: var(--success); }
+        .res-fail { color: var(--danger); }
+
+        .footer-credit { font-size: 0.8rem; color: #444; margin-bottom: 10px; }
+        #results-list::-webkit-scrollbar { width: 4px; }
+        #results-list::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 10px; }
+
+        .audio-opt {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--dim);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ai-warning">⚠️ La página está hecha con la ayuda de una inteligencia artificial ⚠️</div>
+
+    <div id="game-box">
+        <!-- PANTALLA INICIAL -->
+        <div id="start-screen" class="overlay">
+            <h1 style="color: var(--primary); font-size: 2.2rem; margin: 0;">EMOJI QUIZ</h1>
+            <p style="color: var(--text-dim); margin-bottom: 1.5rem;">Adivina el freestyler.</p>
+            <p style="font-size: 0.75rem; color: #444; margin-bottom: 1rem;">Todos los sonidos están libres de derechos de autor.</p>
+            
+            <label class="audio-opt">
+                <input type="checkbox" id="audio-toggle" checked> 
+                Activar sonidos e instrumental Zen 🎵
+            </label>
+
+            <button class="btn btn-main" style="width: 180px" onclick="iniciarJuego()">EMPEZAR</button>
+        </div>
+
+        <!-- HUD -->
+        <div class="stats">
+            <div class="badge" id="life-badge">❤️ <span id="txt-vidas">5</span></div>
+            <div class="badge">⭐ <span id="txt-puntos">0</span></div>
+            <div class="badge">Nivel <span id="txt-nivel">1</span></div>
+        </div>
+
+        <div id="timer-container"><div id="timer-bar"></div></div>
+
+        <!-- Gameplay -->
+        <div id="emoji-display">✨</div>
+        <input type="text" id="ans-input" placeholder="Nombre..." autocomplete="off" oninput="handleInput()">
+        
+        <button id="btn-comprobar" class="btn btn-main" onclick="comprobar()" disabled>COMPROBAR</button>
+        <button class="btn btn-shop" onclick="abrirTienda()">TIENDA 🛒</button>
+        <button class="btn btn-ghost" onclick="location.reload()">REINICIAR</button>
+
+        <!-- Feedback / Final -->
+        <div id="modal-feedback" class="overlay" style="display: none;">
+            <div id="fb-icon" style="font-size: 3rem; margin-bottom: 10px;"></div>
+            <h2 id="fb-title"></h2>
+            <div id="results-list" style="display:none;"></div>
+            <p id="fb-body" style="color: var(--text-dim); margin-bottom: 1.5rem; white-space: pre-line;"></p>
+            <button class="btn btn-main" onclick="cerrarFeedback()">CONTINUAR</button>
+        </div>
+
+        <!-- TIENDA -->
+        <div id="modal-tienda" class="overlay" style="display: none;">
+            <h2 style="color: var(--accent); margin: 0;">TIENDA</h2>
+            <p style="font-size: 0.8rem; margin-bottom: 15px;">Puntos: <span id="shop-puntos">0</span></p>
+            <div style="width:100%">
+                <div style="display:flex; justify-content:space-between; background:#111; padding:10px; border-radius:15px; margin-bottom:8px; align-items:center;">
+                    <span>Vida ❤️ (500)</span>
+                    <button class="btn btn-main" style="width:60px; padding:5px;" onclick="comprar('vida')">BUY</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; background:#111; padding:10px; border-radius:15px; margin-bottom:8px; align-items:center;">
+                    <span>Pista 💡 (200)</span>
+                    <button class="btn btn-main" style="width:60px; padding:5px;" onclick="comprar('pista')">BUY</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; background:#111; padding:10px; border-radius:15px; margin-bottom:8px; align-items:center;">
+                    <span>Skip ⏭️ (300)</span>
+                    <button class="btn btn-main" style="width:60px; padding:5px;" onclick="comprar('skip')">BUY</button>
+                </div>
+            </div>
+            <button class="btn btn-ghost" onclick="cerrarTienda()">VOLVER</button>
+        </div>
+    </div>
+
+    <div class="footer-credit">Juego creado por @erchelsifut en X/Twitter.</div>
+
+    <!-- AUDIO EXTERNO (Solo música) -->
+    <audio id="bg-music" loop src="https://assets.mixkit.co/music/preview/mixkit-lofi-night-dreams-144.mp3"></audio>
+
+    <script>
+        const NIVELES_RAW = [
+            { e: "🧊🏀🎪", a: ["bnet"], h: "El amo de las rimas de Madrid." },
+            { e: "⛪🐐🤴🏻", a: ["chuty"], h: "El Dios del freestyle español." },
+            { e: "🎙️🦘🥹", a: ["wos"], h: "Campeón internacional argentino." },
+            { e: "🤪🎭🇯🇵", a: ["jaze"], h: "El flow de juguete peruano." },
+            { e: "🐐👨🏻‍🦯🥋", a: ["aczino"], h: "El mejor de la historia mexicano." },
+            { e: "☕🕺🏻🤖", a: ["valles-t", "valles", "vallest", "valles t"], h: "El paso del robot colombiano." },
+            { e: "⚡🎶☀️", a: ["trueno"], h: "De La Boca pal mundo." },
+            { e: "🐵🇮🇩🌉", a: ["errece", "errecé"], h: "MC valenciano con mucho flow." },
+            { e: "👨🏻‍🏫🦅🇨🇳", a: ["rc"], h: "El profesor de la métrica en México." },
+            { e: "🌶️🐂👦🏻", a: ["el menor"], h: "El heredero chileno." },
+            { e: "🗼👦🏻🔬", a: ["gazir"], h: "El niño prodigio de Asturias." },
+            { e: "🦿👴🏻🤸🏻", a: ["invert"], h: "Campeón y rey de los backflips." },
+            { e: "⚔️🔟😪", a: ["blon"], h: "Se va a dormir pronto." },
+            { e: "🐖🇻🇳👨🏻‍🎓", a: ["cacha"], h: "Rey del doble tempo argentino." },
+            { e: "🍭🤕🧛🏻", a: ["sweet pain", "sweetpain", "sweet"], h: "El colmillo del sur." },
+            { e: "🍬🟥👧🏻", a: ["azuky", "azuki"], h: "La joven jefa de México." },
+            { e: "🧢🧌👨🏻‍🏫", a: ["zasko", "zasko master"], h: "El máster de las métricas." },
+            { e: "🧮🌶️🔢", a: ["teorema", "teo"], h: "Pitágoras." },
+            { e: "🛞👕♻️", a: ["rodamiento"], h: "Perdió la batalla." },
+            { e: "😂👴🏻🇲🇽", a: ["skone"], h: "El rey del chisteil." },
+            { e: "🦗☠️💤", a: ["klan"], h: "La esencia de las plazas argentinas." },
+            { e: "🤪🤏🏻🤣", a: ["lokillo"], h: "Trovador y MC colombiano." },
+            { e: "🥈💪🏻✈️", a: ["force"], h: "Adelgacé porque me metí..." },
+            { e: "💌🟥💍", a: ["nota roja"], h: "Viralidad." },
+            { e: "🇮🇨👩🏻‍🎤🇯🇲", a: ["sara socas"], h: "Referente femenina canaria." },
+            { e: "☕👩🏻🌎", a: ["marithea"], h: "La reina de Colombia." },
+            { e: "🧱⚰️👨🏻‍🎤", a: ["walls"], h: "De Murcia al estrellato." },
+            { e: "👨‍❤️‍💋‍👨🇵🇪🤖", a: ["arkano"], h: "Descendió en un país ajeno." }
+        ];
+
+        let niveles = [], historial = [];
+        let idx = 0, vidas = 5, puntos = 0, tiempo = 100, timer, aciertosTotales = 0;
+        let audioHabilitado = true;
+
+        // --- SISTEMA DE AUDIO (Web Audio API para sonidos internos) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSfx(freq, type, dur, vol) {
+            if (!audioHabilitado) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + dur);
+        }
+
+        const sounds = {
+            pop: () => playSfx(400, 'sine', 0.1, 0.1),
+            click: () => playSfx(150, 'triangle', 0.1, 0.1),
+            success: () => playSfx(800, 'sine', 0.5, 0.1),
+            fail: () => playSfx(100, 'sawtooth', 0.3, 0.05)
+        };
+
+        // --- LÓGICA ---
+        function iniciarJuego() {
+            audioCtx.resume();
+            audioHabilitado = document.getElementById('audio-toggle').checked;
+            if (audioHabilitado) document.getElementById('bg-music').play().catch(()=>{});
+            
+            niveles = [...NIVELES_RAW].sort(() => Math.random() - 0.5);
+            document.getElementById('start-screen').style.display = 'none';
+            cargarNivel();
+        }
+
+        function cargarNivel() {
+            if (idx >= niveles.length || vidas <= 0) {
+                const finalMsg = `Has acertado ${aciertosTotales} de ${niveles.length} adivinanzas.\nEso te deja con ${puntos} puntos.`;
+                mostrarFeedback("🏁", "Final", finalMsg, true);
+                return;
+            }
+            tiempo = 100;
+            document.getElementById('txt-nivel').textContent = idx + 1;
+            document.getElementById('emoji-display').textContent = niveles[idx].e;
+            document.getElementById('ans-input').value = "";
+            validarInput();
+            document.getElementById('ans-input').focus();
+            actualizarUI();
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(timer);
+            timer = setInterval(() => {
+                tiempo -= 0.5;
+                document.getElementById('timer-bar').style.width = tiempo + "%";
+                if (tiempo <= 0) {
+                    clearInterval(timer);
+                    falloAutomatico("¡TIEMPO AGOTADO!"); 
+                }
+            }, 100);
+        }
+
+        function handleInput() {
+            validarInput();
+            sounds.pop();
+        }
+
+        function validarInput() {
+            document.getElementById('btn-comprobar').disabled = document.getElementById('ans-input').value.trim().length === 0;
+        }
+
+        function comprobar() {
+            sounds.click();
+            const user = normalizar(document.getElementById('ans-input').value);
+            clearInterval(timer);
+            
+            const acierto = niveles[idx].a.some(opt => normalizar(opt) === user);
+
+            if (acierto) {
+                sounds.success();
+                let gain = Math.floor(tiempo) + 50;
+                puntos += gain;
+                aciertosTotales++;
+                historial.push({ e: niveles[idx].e, ok: true, name: niveles[idx].a[0] });
+                idx++; 
+                mostrarFeedback("✨", "¡CORRECTO!", `Has ganado ${gain} puntos.`);
+            } else {
+                falloAutomatico("INCORRECTO");
+            }
+        }
+
+        function falloAutomatico(razon) {
+            sounds.fail();
+            clearInterval(timer);
+            vidas--;
+            historial.push({ e: niveles[idx].e, ok: false, name: niveles[idx].a[0] });
+            idx++; 
+            actualizarUI();
+            if (vidas <= 0) cargarNivel();
+            else mostrarFeedback("❌", razon, "Pasamos al siguiente freestyler.");
+        }
+
+        function normalizar(t) {
+            return t.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function mostrarFeedback(icon, title, body, final = false) {
+            const modal = document.getElementById('modal-feedback');
+            const resList = document.getElementById('results-list');
+            const fbBody = document.getElementById('fb-body');
+            document.getElementById('fb-icon').textContent = icon;
+            document.getElementById('fb-title').textContent = title;
+            
+            if (final) {
+                resList.style.display = 'block';
+                fbBody.textContent = body;
+                resList.innerHTML = historial.map(r => `
+                    <div class="result-row">
+                        <span>${r.e} <b>${r.name.toUpperCase()}</b></span>
+                        <span class="${r.ok ? 'res-ok' : 'res-fail'}">${r.ok ? '✔' : '✘'}</span>
+                    </div>
+                `).join('');
+            } else {
+                resList.style.display = 'none';
+                fbBody.textContent = body;
+            }
+
+            modal.style.display = 'flex';
+            const btn = modal.querySelector('button');
+            btn.onclick = () => {
+                sounds.click();
+                if (final) location.reload();
+                else {
+                    modal.style.display = 'none';
+                    cargarNivel();
+                }
+            };
+        }
+
+        function abrirTienda() {
+            sounds.click();
+            clearInterval(timer);
+            document.getElementById('shop-puntos').textContent = puntos;
+            document.getElementById('modal-tienda').style.display = 'flex';
+        }
+
+        function cerrarTienda() {
+            sounds.click();
+            document.getElementById('modal-tienda').style.display = 'none';
+            if(document.getElementById('modal-feedback').style.display === 'none') startTimer();
+        }
+
+        function comprar(item) {
+            sounds.click();
+            if (item === 'vida' && puntos >= 500) { puntos -= 500; vidas++; }
+            else if (item === 'pista' && puntos >= 200) { 
+                puntos -= 200; 
+                document.getElementById('modal-tienda').style.display = 'none';
+                mostrarFeedback("💡", "PISTA", niveles[idx].h);
+                return;
+            }
+            else if (item === 'skip' && puntos >= 300) { 
+                puntos -= 300; 
+                historial.push({ e: niveles[idx].e, ok: false, name: niveles[idx].a[0] + " (SKIP)" });
+                idx++; 
+                document.getElementById('modal-tienda').style.display = 'none';
+                cargarNivel();
+                return;
+            }
+            actualizarUI();
+            cerrarTienda();
+        }
+
+        function actualizarUI() {
+            document.getElementById('txt-vidas').textContent = vidas;
+            document.getElementById('txt-puntos').textContent = puntos;
+            if (vidas === 3 || vidas === 1) document.body.classList.add('critical-mode');
+            else document.body.classList.remove('critical-mode');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !document.getElementById('btn-comprobar').disabled) comprobar();
+        });
+    </script>
+</body>
+</html>
