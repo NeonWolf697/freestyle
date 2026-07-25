@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freestyle Impostor - Online Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg: #050505;
+            --card: #0d0d0d;
+            --primary: #c3a6ff;
+            --danger: #ff4444;
+            --success: #50fa7b;
+            --accent: #ff79c6;
+            --text: #ffffff;
+            --dim: #555;
+        }
+
+        * { box-sizing: border-box; font-family: 'Quicksand', sans-serif; }
+        
+        body {
+            background-color: var(--bg);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        .ai-warning {
+            background: #1a1a1a; color: #888; padding: 5px 15px; font-size: 0.75rem;
+            border-radius: 0 0 10px 15px; position: fixed; top: 0; z-index: 3000;
+        }
+
+        /* Contenedor Principal con efecto Neón sutil */
+        #app-container {
+            background: var(--card);
+            width: 90%;
+            max-width: 450px;
+            min-height: 500px;
+            padding: 2rem;
+            border-radius: 40px;
+            border: 1px solid #1a1a1a;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Sistema de Vistas */
+        .view { display: none; flex-direction: column; height: 100%; width: 100%; }
+        .view.active { display: flex; }
+
+        h1 { font-size: 2.5rem; margin: 0; color: var(--primary); }
+        .subtitle { color: var(--dim); margin-bottom: 2rem; font-size: 0.9rem; }
+
+        input {
+            width: 100%; padding: 16px; border-radius: 20px; border: 2px solid #222;
+            background: #000; color: white; font-size: 1.1rem; text-align: center;
+            margin-bottom: 15px; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .btn { 
+            width: 100%; padding: 16px; border-radius: 20px; border: none; 
+            font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1rem; 
+            margin-bottom: 10px;
+        }
+        .btn-main { background: var(--primary); color: #000; }
+        .btn-ghost { background: transparent; color: var(--text); border: 1px solid #333; }
+        .btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+        /* Lobby */
+        .player-tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; }
+        .tag { background: #151515; padding: 6px 15px; border-radius: 15px; font-size: 0.8rem; border: 1px solid #222; }
+
+        /* Game UI */
+        .header-info { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .badge { background: #111; padding: 6px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; border: 1px solid #222; }
+        
+        .secret-box {
+            background: #080808; padding: 20px; border-radius: 25px;
+            margin-bottom: 15px; border: 2px dashed var(--primary);
+        }
+
+        .chat-area {
+            flex-grow: 1; height: 200px; overflow-y: auto; background: #050505;
+            border-radius: 20px; padding: 15px; margin-bottom: 15px;
+            display: flex; flex-direction: column; gap: 8px; text-align: left;
+        }
+        .chat-msg { font-size: 0.85rem; padding: 8px 12px; border-radius: 12px; background: #151515; border: 1px solid #222; }
+        .chat-msg b { color: var(--primary); }
+
+        #copy-btn { color: var(--primary); font-size: 0.75rem; cursor: pointer; text-decoration: underline; margin-bottom: 10px; }
+        .impostor-alert { color: var(--danger); font-weight: 900; animation: flash 1s infinite; }
+        
+        @keyframes flash { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        
+        .footer { font-size: 0.7rem; color: #333; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="ai-warning">⚠️ La página está hecha con la ayuda de una inteligencia artificial ⚠️</div>
+
+    <div id="app-container">
+        
+        <!-- VISTA 1: INICIO/LOBBY -->
+        <div id="view-lobby" class="view active">
+            <h1>IMPOSTOR</h1>
+            <p class="subtitle">Edición Freestylers</p>
+            
+            <div id="setup-inputs">
+                <input type="text" id="player-name" placeholder="Tu apodo de MC...">
+                <button class="btn btn-main" id="btn-create" onclick="createRoom()">CREAR SALA</button>
+            </div>
+
+            <div id="waiting-area" style="display: none;">
+                <div id="copy-btn" onclick="copyInviteLink()">🔗 Copiar enlace de invitación</div>
+                <p style="font-size: 0.8rem; color: var(--dim);">Esperando jugadores (Mín. 3)...</p>
+                <div id="player-tags" class="player-tags"></div>
+                <button class="btn btn-main" id="btn-start" onclick="hostPreparesGame()" disabled>EMPEZAR PARTIDA</button>
+            </div>
+        </div>
+
+        <!-- VISTA 2: JUEGO -->
+        <div id="view-game" class="view">
+            <div class="header-info">
+                <div class="badge">RONDA <span id="round-num">1</span>/3</div>
+                <div class="badge">TURNO: <b id="current-player-name">-</b></div>
+            </div>
+
+            <div class="secret-box">
+                <p style="font-size: 0.65rem; color: var(--dim); margin: 0;">OBJETIVO:</p>
+                <div id="word-display" style="font-size: 1.3rem; font-weight: bold; margin: 5px 0;">-</div>
+                
+                <div id="vote-area">
+                    <button id="btn-vote" class="btn btn-ghost" style="padding: 8px; font-size: 0.7rem; margin: 0;" onclick="sendVote()">
+                        VOTAR CAMBIO (<span id="v-count">0</span>/<span id="v-total">0</span>)
+                    </button>
+                    <div id="timer-vote" style="color: var(--danger); font-size: 0.7rem; margin-top: 5px;">Tiempo: 20s</div>
+                </div>
+            </div>
+
+            <div class="chat-area" id="game-chat"></div>
+
+            <div id="input-section" style="display: none;">
+                <input type="text" id="pista-input" placeholder="Escribe algo sobre el freestyler..." maxlength="50">
+                <button class="btn btn-main" onclick="submitPista()">ENVIAR PISTA</button>
+            </div>
+            <div id="status-msg" style="color: var(--dim); font-size: 0.8rem;">Esperando rima...</div>
+        </div>
+
+        <div class="footer">Juego por @erchelsifut · PeerJS P2P</div>
+    </div>
+
+    <script>
+        const FREESTYLERS = ["Wos", "Bnet", "Chuty", "Aczino", "Skone", "Arkano", "Gazir", "Trueno", "Papo", "Dtoke", "Teorema", "Kaiser", "Valles-T", "Zasko", "Blon", "Invert", "Rayden", "Piezas", "Kodigo", "Nitro", "Sony", "Klan", "MKS", "Cacha", "Jaze", "Nekroos", "Rapder", "Lobo Estepario", "RC", "Mecha", "Stuart", "Larrix", "Katra", "Wolf", "Replik", "El Menor", "Pepe Grillo", "Ricto", "Basek", "Hadrián", "Akapellah", "Mcklopedia", "Dominic", "Tata", "Frescolate", "Chester", "Jota", "Link One", "Brock", "Errecé", "BTA", "Dani", "Lit Killah", "Acru", "Yartzi", "DrefQuila", "Mr. Ego", "Jayco", "Stick", "Carlitos", "Danger", "Critofebril", "Sador", "Drose", "Hander", "Mordekai", "JNO", "Dozer", "Jack Adrenalina", "Kapo 013", "Soen", "Elekipo", "Gaviria", "Navalha", "Compare Flow", "Letra", "Walls", "Big Killah", "Babi", "Criterioh", "Joanarman", "Duki", "Choque", "Acertijo", "Eude", "Mowlihawk", "Ecko", "Force", "Sweet Pain", "Sara Socas", "SNK", "Jony Beltrán", "Lokillo", "Azuky", "Exe", "Naista", "Jokker", "Mnak", "Tirpa", "Noult", "Khan", "Jesús LC", "JandJ", "Kensuke", "Teko", "Botta", "Kmbra", "Ehler Danloss", "Cixer", "Coletiyas", "Barón", "Celedonio", "Ante", "Reuto", "Yeah Yon", "Jado", "Jonko", "Jaloner", "Kid Masta", "BHA", "Vivi", "Kabuto", "FJ", "Xinako", "MrKaos", "JS", "Shintoma", "LE33", "Kvron", "Mister", "Nacho LCM", "Mclito", "Aigor", "Mounts", "Robledo", "Zarro", "Neonath", "Negro Freshco", "Nocre", "Nasher", "Longitudinal", "Tader", "Sacro Requiem", "Antrax", "El Puto Coke", "Michu", "JDR", "Eloy393", "McMen", "Giorgio Masplatino", "Titus", "Jodido Pelirrojo", "Mark", "Mario VI", "Tito Soul", "Eskape", "Efe R", "Wader", "SRK", "NQP", "Exfimo", "Fabiuki", "Emblema", "Alek", "Nez", "Marithea", "MC Kim", "Kharma", "Erika Dos Santos", "Joaqui", "Stigma", "Metalingüística", "Blackcode"];
+
+        let peer, conn, myName = "", isHost = false, players = [], impostorId = "", secretWord = "", rerollVotes = [], voteTime = 20;
+        let gameState = { round: 1, turnIndex: 0, log: [] };
+        let voteTimerInterval;
+
+        // Comprobar si entramos por enlace
+        const urlParams = new URLSearchParams(window.location.search);
+        const joinId = urlParams.get('room');
+        if(joinId) {
+            document.getElementById('setup-inputs').innerHTML = `<button class="btn btn-main" onclick="joinRoom('${joinId}')">UNIRSE A LA SALA</button>`;
+        }
+
+        function createRoom() {
+            myName = document.getElementById('player-name').value.trim();
+            if(!myName) return alert("Escribe tu nombre");
+            isHost = true; initPeer();
+        }
+
+        function joinRoom(id) {
+            myName = document.getElementById('player-name').value.trim();
+            if(!myName) return alert("Escribe tu nombre");
+            initPeer(id);
+        }
+
+        function initPeer(id = null) {
+            peer = new Peer();
+            peer.on('open', (myId) => {
+                document.getElementById('setup-inputs').style.display = 'none';
+                document.getElementById('waiting-area').style.display = 'block';
+                if(isHost) {
+                    players.push({id: myId, name: myName});
+                    updateLobbyUI();
+                } else {
+                    conn = peer.connect(id);
+                    conn.on('open', () => conn.send({type:'JOIN', name: myName}));
+                    conn.on('data', handleData);
+                }
+            });
+            peer.on('connection', (c) => {
+                c.on('data', (data) => {
+                    if(isHost && data.type === 'JOIN') {
+                        players.push({id: c.peer, name: data.name, conn: c});
+                        broadcast({type:'PLAYER_LIST', players: players.map(p => ({name: p.name}))});
+                        updateLobbyUI();
+                    }
+                    handleData(data);
+                });
+            });
+        }
+
+        function handleData(data) {
+            if(data.type === 'PLAYER_LIST') { players = data.players; updateLobbyUI(); }
+            if(data.type === 'START_GAME' || data.type === 'WORD_REROLL') {
+                impostorId = data.impostorId;
+                secretWord = data.word; // null para impostor
+                players = data.players;
+                if(data.type === 'WORD_REROLL') {
+                    gameState = { round: 1, turnIndex: 0, log: [{user:"SISTEMA", text:"¡Palabra cambiada!"}] };
+                    rerollVotes = [];
+                    document.getElementById('btn-vote').disabled = false;
+                }
+                showGameUI();
+            }
+            if(data.type === 'SYNC_STATE') { gameState = data.state; updateGameUI(); }
+            if(data.type === 'VOTE_TALLY') {
+                rerollVotes = data.votes;
+                document.getElementById('v-count').textContent = rerollVotes.length;
+            }
+            if(data.type === 'VOTE_TIMER') {
+                voteTime = data.time;
+                document.getElementById('timer-vote').textContent = `Tiempo: ${voteTime}s`;
+                if(voteTime <= 0) document.getElementById('reroll-section').style.display = 'none';
+            }
+            if(isHost) {
+                if(data.type === 'VOTE_SUBMIT') {
+                    if(!rerollVotes.includes(data.from)) rerollVotes.push(data.from);
+                    broadcast({type:'VOTE_TALLY', votes: rerollVotes});
+                    if(rerollVotes.length >= players.length) hostPreparesGame(true);
+                }
+                if(data.type === 'MSG_SUBMIT') { processTurn(data.user, data.text); }
+            }
+        }
+
+        function broadcast(data) { players.forEach(p => p.conn && p.conn.send(data)); }
+
+        function updateLobbyUI() {
+            document.getElementById('player-tags').innerHTML = players.map(p => `<div class="tag">${p.name}</div>`).join('');
+            if(isHost) {
+                document.getElementById('btn-start').style.display = 'block';
+                document.getElementById('btn-start').disabled = players.length < 3;
+            }
+        }
+
+        function copyInviteLink() {
+            const url = `${window.location.origin}${window.location.pathname}?room=${peer.id}`;
+            const el = document.createElement('textarea');
+            el.value = url; document.body.appendChild(el); el.select();
+            document.execCommand('copy'); document.body.removeChild(el);
+            document.getElementById('copy-btn').textContent = "✅ ¡Enlace Copiado!";
+            setTimeout(() => document.getElementById('copy-btn').textContent = "🔗 Copiar enlace de invitación", 2000);
+        }
+
+        // HOST LOGIC
+        function hostPreparesGame(isReroll = false) {
+            if(!isReroll) impostorId = players[Math.floor(Math.random()*players.length)].id;
+            const newWord = FREESTYLERS[Math.floor(Math.random()*FREESTYLERS.length)];
+            
+            voteTime = 20;
+            rerollVotes = [];
+            gameState = { round: 1, turnIndex: 0, log: [] };
+
+            players.forEach(p => {
+                const payload = {
+                    type: isReroll ? 'WORD_REROLL' : 'START_GAME',
+                    impostorId: impostorId,
+                    players: players.map(pl => ({id: pl.id, name: pl.name})),
+                    word: (p.id === impostorId) ? null : newWord
+                };
+                if(p.id === peer.id) {
+                    secretWord = payload.word;
+                    showGameUI();
+                } else if(p.conn) {
+                    p.conn.send(payload);
+                }
+            });
+            startVoteTimer();
+        }
+
+        function startVoteTimer() {
+            clearInterval(voteTimerInterval);
+            voteTimerInterval = setInterval(() => {
+                voteTime--;
+                broadcast({type: 'VOTE_TIMER', time: voteTime});
+                document.getElementById('timer-vote').textContent = `Tiempo: ${voteTime}s`;
+                if(voteTime <= 0) {
+                    clearInterval(voteTimerInterval);
+                    document.getElementById('reroll-section').style.display = 'none';
+                }
+            }, 1000);
+        }
+
+        function showGameUI() {
+            document.getElementById('view-lobby').classList.remove('active');
+            document.getElementById('view-game').classList.add('active');
+            document.getElementById('v-total').textContent = players.length;
+            document.getElementById('v-count').textContent = "0";
+            
+            const display = document.getElementById('word-display');
+            if(secretWord === null) {
+                display.textContent = "ERES EL IMPOSTOR";
+                display.className = "impostor-alert";
+            } else {
+                display.textContent = secretWord.toUpperCase();
+                display.className = "";
+            }
+            updateGameUI();
+        }
+
+        function sendVote() {
+            document.getElementById('btn-vote').disabled = true;
+            if(isHost) {
+                if(!rerollVotes.includes(peer.id)) rerollVotes.push(peer.id);
+                broadcast({type:'VOTE_TALLY', votes: rerollVotes});
+                if(rerollVotes.length >= players.length) hostPreparesGame(true);
+            } else conn.send({type: 'VOTE_SUBMIT', from: peer.id});
+        }
+
+        function updateGameUI() {
+            document.getElementById('round-num').textContent = gameState.round;
+            const pTurn = players[gameState.turnIndex];
+            document.getElementById('turn-name').textContent = pTurn.name;
+            
+            const logBox = document.getElementById('game-chat');
+            logBox.innerHTML = gameState.log.map(m => `
+                <div class="chat-msg"><b>${m.user}:</b> ${m.text}</div>
+            `).join('');
+            logBox.scrollTop = logBox.scrollHeight;
+
+            if(gameState.round > 3) {
+                document.getElementById('input-section').style.display = 'none';
+                document.getElementById('status-msg').innerHTML = `<b style="color:var(--primary)">FIN DE PARTIDA</b><br>Debatid quién es el impostor.`;
+                return;
+            }
+
+            const isMyTurn = (peer.id === pTurn.id);
+            document.getElementById('input-section').style.display = isMyTurn ? 'block' : 'none';
+            document.getElementById('status-msg').style.display = isMyTurn ? 'none' : 'block';
+        }
+
+        function submitPista() {
+            const input = document.getElementById('pista-input');
+            const text = input.value.trim();
+            if(!text) return;
+            if(isHost) processTurn(myName, text);
+            else conn.send({type:'MSG_SUBMIT', user: myName, text: text});
+            input.value = "";
+        }
+
+        function processTurn(user, text) {
+            gameState.log.push({user, text});
+            gameState.turnIndex++;
+            if(gameState.turnIndex >= players.length) {
+                gameState.turnIndex = 0;
+                gameState.round++;
+            }
+            broadcast({type:'SYNC_STATE', state: gameState});
+            updateGameUI();
+        }
+
+    </script>
+</body>
+</html>
