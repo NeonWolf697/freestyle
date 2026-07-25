@@ -3,54 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Freestyle Impostor - Online Pro</title>
+    <title>Freestyle Impostor - Online</title>
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
-            --bg: #050505; --card: #0d0d0d; --primary: #c3a6ff;
-            --danger: #ff4444; --success: #50fa7b; --accent: #ff79c6;
-            --text: #ffffff; --dim: #555;
+            --bg: #050505;
+            --card: #0d0d0d;
+            --primary: #c3a6ff;
+            --danger: #ff4444;
+            --success: #50fa7b;
+            --accent: #ff79c6;
+            --text: #ffffff;
+            --dim: #555;
         }
+
         * { box-sizing: border-box; font-family: 'Quicksand', sans-serif; }
+        
         body {
-            background-color: var(--bg); margin: 0; min-height: 100vh;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: var(--text); overflow: hidden; transition: box-shadow 0.5s ease;
+            background-color: var(--bg);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--text);
+            overflow-x: hidden;
         }
-        body.critical-mode { box-shadow: inset 0 0 150px rgba(255, 68, 68, 0.4); background-color: #0d0000; }
+
         .ai-warning {
             background: #1a1a1a; color: #888; padding: 5px 15px; font-size: 0.75rem;
             border-radius: 0 0 10px 15px; position: fixed; top: 0; z-index: 3000;
         }
+
         #app-wrapper {
-            background: var(--card); width: 90%; max-width: 450px; min-height: 550px;
-            padding: 2rem; border-radius: 40px; border: 1px solid #1a1a1a;
-            position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-            display: flex; flex-direction: column;
+            background: var(--card);
+            width: 90%;
+            max-width: 450px;
+            min-height: 500px;
+            padding: 2rem;
+            border-radius: 40px;
+            border: 1px solid #1a1a1a;
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
         }
-        .view { display: none; flex-direction: column; height: 100%; width: 100%; flex-grow: 1; }
+
+        .view { display: none; flex-direction: column; height: 100%; width: 100%; }
         .view.active { display: flex; }
+
         h1 { font-size: 2.2rem; margin: 0; color: var(--primary); }
+        .subtitle { color: var(--dim); margin-bottom: 2rem; font-size: 0.9rem; }
+
         input {
             width: 100%; padding: 16px; border-radius: 20px; border: 2px solid #222;
             background: #000; color: white; font-size: 1.1rem; text-align: center;
             margin-bottom: 15px; outline: none; transition: 0.3s;
         }
         input:focus { border-color: var(--primary); }
-        .btn { width: 100%; padding: 16px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1rem; margin-bottom: 10px; }
+
+        .btn { 
+            width: 100%; padding: 16px; border-radius: 20px; border: none; 
+            font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1rem; 
+            margin-bottom: 10px;
+        }
         .btn-main { background: var(--primary); color: #000; }
         .btn-ghost { background: transparent; color: var(--text); border: 1px solid #333; }
         .btn:disabled { opacity: 0.2; cursor: not-allowed; }
-        .player-tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; min-height: 40px; }
-        .tag { background: #151515; padding: 6px 15px; border-radius: 15px; font-size: 0.8rem; border: 1px solid #222; color: var(--primary); }
-        .secret-box { background: #080808; padding: 20px; border-radius: 25px; margin-bottom: 15px; border: 2px dashed var(--primary); }
-        .chat-area { flex-grow: 1; height: 180px; overflow-y: auto; background: #050505; border-radius: 20px; padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+
+        .player-tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; }
+        .tag { background: #151515; padding: 6px 15px; border-radius: 15px; font-size: 0.8rem; border: 1px solid #222; }
+
+        .secret-box {
+            background: #080808; padding: 20px; border-radius: 25px;
+            margin-bottom: 15px; border: 2px dashed var(--primary);
+        }
+
+        .chat-area {
+            flex-grow: 1; height: 180px; overflow-y: auto; background: #050505;
+            border-radius: 20px; padding: 15px; margin-bottom: 15px;
+            display: flex; flex-direction: column; gap: 8px; text-align: left;
+        }
         .chat-msg { font-size: 0.85rem; padding: 8px 12px; border-radius: 12px; background: #151515; border: 1px solid #222; }
         .chat-msg b { color: var(--primary); }
-        #timer-bar { width: 100%; height: 4px; background: #111; margin: 10px 0; border-radius: 5px; overflow: hidden; }
-        #timer-fill { width: 100%; height: 100%; background: var(--primary); transition: width 1s linear; }
-        .impostor-text { color: var(--danger); font-weight: 900; font-size: 1.5rem; letter-spacing: 2px; }
+
+        #copy-info { color: var(--primary); font-size: 0.75rem; cursor: pointer; text-decoration: underline; margin-bottom: 10px; }
+        .impostor-alert { color: var(--danger); font-weight: 900; }
+        
         .footer { font-size: 0.7rem; color: #333; margin-top: 15px; text-align: center; }
     </style>
 </head>
@@ -63,28 +104,28 @@
         <!-- VISTA: LOBBY -->
         <div id="view-lobby" class="view active">
             <h1>IMPOSTOR</h1>
-            <p style="color:var(--dim); font-size:0.8rem; margin-bottom:2rem;">Freestyle Edition</p>
+            <p class="subtitle">Edición Freestylers</p>
+            
             <input type="text" id="player-name" placeholder="Tu apodo de MC...">
-            <div id="lobby-actions">
-                <button class="btn btn-main" id="btn-create-lobby" onclick="setupPeer(true)">CREAR SALA</button>
-                <button class="btn btn-main" id="btn-join-lobby" style="display:none; background: var(--success);" onclick="setupPeer(false)">UNIRSE A LA SALA</button>
+            
+            <div id="lobby-actions" style="width: 100%;">
+                <button class="btn btn-main" id="btn-create" onclick="setupPeer(true)">CREAR SALA</button>
             </div>
-            <div id="view-waiting" style="display: none;">
-                <p id="room-link-display" style="color: var(--primary); font-size: 0.75rem; cursor: pointer; margin-bottom: 15px;" onclick="copyInviteLink()">🔗 Copiar enlace de invitación</p>
+
+            <div id="waiting-area" style="display: none;">
+                <div id="copy-info" onclick="copyInviteLink()">🔗 Copiar enlace de invitación</div>
+                <p style="font-size: 0.8rem; color: var(--dim);">Esperando jugadores (Mín. 3)...</p>
                 <div id="player-tags" class="player-tags"></div>
-                <p id="wait-text" style="font-size: 0.8rem; color: var(--dim);">Esperando jugadores...</p>
-                <button class="btn btn-main" id="btn-start" onclick="hostPreparesGame(false)" style="display:none;" disabled>EMPEZAR PARTIDA</button>
+                <button class="btn btn-main" id="btn-start" onclick="hostPreparesGame()" disabled>EMPEZAR PARTIDA</button>
             </div>
         </div>
 
         <!-- VISTA: JUEGO -->
         <div id="view-game" class="view">
-            <div style="display:flex; justify-content: space-between; align-items:center;">
+            <div style="display:flex; justify-content: space-between; margin-bottom: 15px;">
                 <div class="badge">RONDA <span id="round-num">1</span>/3</div>
-                <div id="timer-num" style="font-weight:bold; color:var(--primary)">30s</div>
                 <div class="badge">TURNO: <b id="turn-name">-</b></div>
             </div>
-            <div id="timer-bar"><div id="timer-fill"></div></div>
 
             <div class="secret-box">
                 <p style="font-size: 0.65rem; color: var(--dim); margin: 0;">OBJETIVO:</p>
@@ -107,6 +148,25 @@
             <div id="status-msg" style="color: var(--dim); font-size: 0.8rem;">Espera tu turno...</div>
         </div>
 
+        <!-- VISTA: VOTACIÓN FINAL -->
+        <div id="view-voting" class="view">
+            <h1 style="color: var(--danger);">VOTACIÓN</h1>
+            <p class="subtitle">¿Quién es el impostor?</p>
+            <div id="vote-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+
+        <!-- VISTA: RESULTADO -->
+        <div id="view-result" class="view">
+            <h1 id="result-title">GANADORES</h1>
+            <div class="secret-box">
+                <p style="font-size: 0.8rem; color: var(--dim);">EL IMPOSTOR ERA:</p>
+                <div id="final-impostor-name" style="font-size: 1.5rem; font-weight: bold; color: var(--danger);">?</div>
+                <p style="font-size: 0.8rem; color: var(--dim); margin-top: 10px;">PALABRA:</p>
+                <div id="final-word" style="font-size: 1.2rem; font-weight: bold; color: var(--primary);">?</div>
+            </div>
+            <button class="btn btn-main" onclick="location.reload()">VOLVER AL LOBBY</button>
+        </div>
+
         <div class="footer">Juego por @erchelsifut · PeerJS P2P</div>
     </div>
 
@@ -117,24 +177,24 @@
         let gameState = { round: 1, turnIndex: 0, log: [] };
         let voteTimerInterval;
 
+        // Comprobar si entramos por enlace
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('room');
         if(roomId) {
-            document.getElementById('btn-create-lobby').style.display = 'none';
-            document.getElementById('btn-join-lobby').style.display = 'block';
+            document.getElementById('lobby-actions').innerHTML = `<button class="btn btn-main" onclick="setupPeer(false)">UNIRSE A LA SALA</button>`;
         }
 
         function setupPeer(hostMode) {
             myName = document.getElementById('player-name').value.trim();
-            if(!myName) return alert("Ponte un apodo");
+            if(!myName) return alert("Ponte un nombre");
             isHost = hostMode;
             
             peer = new Peer();
             peer.on('open', (id) => {
-                document.getElementById('lobby-initial').style.display = 'none';
-                document.getElementById('view-waiting').style.display = 'flex';
+                document.getElementById('lobby-actions').style.display = 'none';
+                document.getElementById('waiting-area').style.display = 'block';
                 if(isHost) {
-                    players = [{id: id, name: myName, conn: null}];
+                    players.push({id: id, name: myName});
                     document.getElementById('btn-start').style.display = 'block';
                     updateLobbyUI();
                 } else {
@@ -142,69 +202,99 @@
                     setupConnection(conn);
                 }
             });
-            peer.on('connection', (c) => setupConnection(c));
+
+            peer.on('connection', (c) => {
+                setupConnection(c);
+            });
+
+            peer.on('error', (err) => {
+                console.error(err);
+                alert("Error de conexión. Asegúrate de que el enlace es válido.");
+            });
         }
 
         function setupConnection(c) {
-            c.on('open', () => { if(!isHost) c.send({type: 'JOIN', name: myName}); });
+            c.on('open', () => {
+                if(!isHost) c.send({type: 'JOIN', name: myName});
+            });
+
             c.on('data', (data) => {
                 if(isHost && data.type === 'JOIN') {
-                    if (!players.find(p => p.id === c.peer)) {
+                    if(!players.find(p => p.id === c.peer)) {
                         players.push({id: c.peer, name: data.name, conn: c});
                     }
-                    broadcast({type: 'SYNC_PLAYERS', list: players.map(p => ({id: p.id, name: p.name}))});
+                    broadcast({type: 'PLAYER_LIST', players: players.map(p => ({name: p.name}))});
                     updateLobbyUI();
                 }
-                if(data.type === 'SYNC_PLAYERS') { players = data.list; updateLobbyUI(); }
+
+                if(data.type === 'PLAYER_LIST') {
+                    players = data.players;
+                    updateLobbyUI();
+                }
+
                 if(data.type === 'START_GAME' || data.type === 'WORD_REROLL') {
                     impostorId = data.impostorId;
                     secretWord = data.word; // null para impostor
                     players = data.players;
-                    gameState = { round: 1, turnIndex: 0, log: [] };
+                    if(data.type === 'WORD_REROLL') {
+                        gameState = { round: 1, turnIndex: 0, log: [] };
+                        rerollVotes = [];
+                        document.getElementById('btn-vote').disabled = false;
+                    }
                     showGameUI();
                 }
+
                 if(data.type === 'SYNC_STATE') { gameState = data.state; updateGameUI(); }
-                if(data.type === 'VOTE_TALLY') {
-                    rerollVotes = data.votes;
-                    document.getElementById('v-count').textContent = rerollVotes.length;
-                }
-                if(data.type === 'VOTE_TIMER') {
-                    voteTime = data.time;
-                    document.getElementById('vote-timer').textContent = `Tiempo: ${voteTime}s`;
-                    if(voteTime <= 0) document.getElementById('reroll-section').style.display = 'none';
-                }
+                if(data.type === 'GOTO_VOTING') showVotingUI();
+                if(data.type === 'REVEAL_FINAL') showResultUI(data);
+
                 if(isHost) {
                     if(data.type === 'VOTE_SUBMIT') {
                         if(!rerollVotes.includes(data.from)) rerollVotes.push(data.from);
-                        broadcast({type: 'VOTE_TALLY', votes: rerollVotes});
+                        broadcast({type: 'VOTE_TALLY', count: rerollVotes.length});
                         if(rerollVotes.length >= players.length) hostPreparesGame(true);
                     }
-                    if(data.type === 'PISTA_SUBMIT') processTurn(data.user, data.text);
+                    if(data.type === 'VOTE_TALLY') {
+                        document.getElementById('v-count').textContent = data.count;
+                    }
+                    if(data.type === 'MSG_SUBMIT') processTurn(data.user, data.text);
+                    if(data.type === 'FINAL_VOTE') tallyFinalVote(data.targetId);
                 }
             });
         }
 
-        function broadcast(data) { players.forEach(p => { if(p.conn) p.conn.send(data); }); }
+        function broadcast(data) {
+            players.forEach(p => { if(p.conn) p.conn.send(data); });
+        }
 
         function updateLobbyUI() {
             document.getElementById('player-tags').innerHTML = players.map(p => `<div class="tag">${p.name}</div>`).join('');
-            if(isHost) document.getElementById('btn-start').disabled = players.length < 3;
+            if(isHost) {
+                document.getElementById('btn-start').disabled = players.length < 3;
+            }
         }
 
         function hostPreparesGame(isReroll = false) {
             if(!isReroll) impostorId = players[Math.floor(Math.random()*players.length)].id;
-            const word = FREESTYLERS[Math.floor(Math.random()*FREESTYLERS.length)];
-            voteTime = 20; rerollVotes = [];
+            const newWord = FREESTYLERS[Math.floor(Math.random()*FREESTYLERS.length)];
             
+            voteTime = 20;
+            rerollVotes = [];
+            gameState = { round: 1, turnIndex: 0, log: [] };
+
             players.forEach(p => {
                 const payload = {
                     type: isReroll ? 'WORD_REROLL' : 'START_GAME',
                     impostorId: impostorId,
                     players: players.map(pl => ({id: pl.id, name: pl.name})),
-                    word: (p.id === impostorId) ? null : word
+                    word: (p.id === impostorId) ? null : newWord
                 };
-                if(p.id === peer.id) { secretWord = payload.word; showGameUI(); }
-                else if(p.conn) p.conn.send(payload);
+                if(p.id === peer.id) {
+                    secretWord = payload.word;
+                    showGameUI();
+                } else if(p.conn) {
+                    p.conn.send(payload);
+                }
             });
             startVoteTimer();
         }
@@ -213,68 +303,116 @@
             clearInterval(voteTimerInterval);
             voteTimerInterval = setInterval(() => {
                 voteTime--;
-                broadcast({type: 'VOTE_TIMER', time: voteTime});
-                document.getElementById('vote-timer').textContent = `Tiempo: ${voteTime}s`;
-                if(voteTime <= 0) { clearInterval(voteTimerInterval); document.getElementById('reroll-section').style.display = 'none'; }
+                document.getElementById('timer-vote').textContent = `Tiempo: ${voteTime}s`;
+                if(voteTime <= 0) {
+                    clearInterval(voteTimerInterval);
+                    document.getElementById('reroll-section').style.display = 'none';
+                }
             }, 1000);
         }
 
         function showGameUI() {
-            document.getElementById('view-lobby').style.display = 'none';
-            document.getElementById('view-game').classList.add('active');
+            switchView('view-game');
             document.getElementById('v-total').textContent = players.length;
-            const display = document.getElementById('role-display');
-            if(secretWord === null) { display.textContent = "ERES EL IMPOSTOR"; display.className = "impostor-alert"; }
-            else { display.textContent = secretWord.toUpperCase(); display.className = ""; }
+            const display = document.getElementById('word-display');
+            if(secretWord === null) {
+                display.textContent = "ERES EL IMPOSTOR";
+                display.className = "impostor-alert";
+            } else {
+                display.textContent = secretWord.toUpperCase();
+                display.className = "";
+            }
             updateGameUI();
-        }
-
-        function sendVote() {
-            document.getElementById('btn-vote').disabled = true;
-            if(isHost) {
-                if(!rerollVotes.includes(peer.id)) rerollVotes.push(peer.id);
-                broadcast({type: 'VOTE_TALLY', votes: rerollVotes});
-                if(rerollVotes.length >= players.length) hostPreparesGame(true);
-            } else conn.send({type: 'VOTE_SUBMIT', from: peer.id});
         }
 
         function updateGameUI() {
             document.getElementById('round-num').textContent = gameState.round;
             const pTurn = players[gameState.turnIndex];
-            document.getElementById('turn-name').textContent = pTurn ? pTurn.name : "-";
-            document.getElementById('game-chat').innerHTML = gameState.log.map(m => `<div class="chat-msg"><b>${m.user}:</b> ${m.text}</div>`).join('');
-            document.getElementById('game-chat').scrollTop = 9999;
+            document.getElementById('turn-name').textContent = pTurn.name;
+            
+            const chat = document.getElementById('game-chat');
+            chat.innerHTML = gameState.log.map(m => `<div class="chat-msg"><b>${m.user}:</b> ${m.text}</div>`).join('');
+            chat.scrollTop = chat.scrollHeight;
+
             if(gameState.round > 3) {
-                document.getElementById('input-section').style.display = 'none';
-                document.getElementById('status-msg').innerHTML = `<b style="color:var(--primary)">FIN DE PARTIDA</b>`;
+                if(isHost) {
+                    setTimeout(() => broadcast({type: 'GOTO_VOTING'}), 2000);
+                    showVotingUI();
+                }
                 return;
             }
-            const isMyTurn = (pTurn && peer.id === pTurn.id);
+
+            const isMyTurn = (peer.id === pTurn.id);
             document.getElementById('input-section').style.display = isMyTurn ? 'block' : 'none';
             document.getElementById('status-msg').style.display = isMyTurn ? 'none' : 'block';
         }
 
         function submitPista() {
-            const text = document.getElementById('pista-input').value.trim();
+            const input = document.getElementById('pista-input');
+            const text = input.value.trim();
             if(!text) return;
             if(isHost) processTurn(myName, text);
-            else conn.send({type:'PISTA_SUBMIT', user: myName, text: text});
-            document.getElementById('pista-input').value = "";
+            else conn.send({type:'MSG_SUBMIT', user: myName, text: text});
+            input.value = "";
         }
 
         function processTurn(user, text) {
             gameState.log.push({user, text});
             gameState.turnIndex++;
-            if(gameState.turnIndex >= players.length) { gameState.turnIndex = 0; gameState.round++; }
+            if(gameState.turnIndex >= players.length) {
+                gameState.turnIndex = 0;
+                gameState.round++;
+            }
             broadcast({type:'SYNC_STATE', state: gameState});
             updateGameUI();
         }
 
+        function showVotingUI() {
+            switchView('view-voting');
+            const list = document.getElementById('vote-list');
+            list.innerHTML = players.map(p => `
+                <button class="btn btn-ghost" onclick="submitFinalVote('${p.id}')">${p.name}</button>
+            `).join('');
+        }
+
+        let finalVotes = {};
+        function submitFinalVote(id) {
+            document.getElementById('vote-list').innerHTML = "<p>Voto enviado. Esperando...</p>";
+            if(isHost) tallyFinalVote(id);
+            else conn.send({type: 'FINAL_VOTE', targetId: id});
+        }
+
+        function tallyFinalVote(id) {
+            finalVotes[id] = (finalVotes[id] || 0) + 1;
+            let total = Object.values(finalVotes).reduce((a, b) => a + b, 0);
+            if(total >= players.length) {
+                let winnerId = Object.keys(finalVotes).reduce((a, b) => finalVotes[a] > finalVotes[b] ? a : b);
+                let victory = (winnerId === impostorId);
+                let impostorName = players.find(p => p.id === impostorId).name;
+                broadcast({type: 'REVEAL_FINAL', win: victory, impostor: impostorName, word: secretWord});
+                showResultUI({win: victory, impostor: impostorName, word: secretWord});
+            }
+        }
+
+        function showResultUI(data) {
+            switchView('view-result');
+            document.getElementById('result-title').textContent = data.win ? "¡CIUDADANOS GANAN!" : "¡EL IMPOSTOR GANA!";
+            document.getElementById('result-title').style.color = data.win ? "var(--success)" : "var(--danger)";
+            document.getElementById('final-impostor-name').textContent = data.impostor;
+            document.getElementById('final-word').textContent = (data.word || "???").toUpperCase();
+        }
+
+        function switchView(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
         function copyInviteLink() {
             const url = `${window.location.origin}${window.location.pathname}?room=${peer.id}`;
-            const el = document.createElement('textarea'); el.value = url; document.body.appendChild(el); el.select();
+            const el = document.createElement('textarea');
+            el.value = url; document.body.appendChild(el); el.select();
             document.execCommand('copy'); document.body.removeChild(el);
-            alert("¡Copiado!");
+            alert("¡Enlace copiado!");
         }
     </script>
 </body>
