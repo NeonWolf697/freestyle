@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freestyle Impostor - Online Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg: #050505; --card: #0d0d0d; --primary: #c3a6ff;
+            --danger: #ff4444; --success: #50fa7b; --accent: #ff79c6;
+            --text: #ffffff; --dim: #555;
+        }
+        * { box-sizing: border-box; font-family: 'Quicksand', sans-serif; }
+        body {
+            background-color: var(--bg); margin: 0; min-height: 100vh;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: var(--text); overflow-x: hidden; transition: box-shadow 0.5s ease;
+        }
+        body.critical-mode { box-shadow: inset 0 0 150px rgba(255, 68, 68, 0.4); background-color: #0d0000; }
+        
+        #game-box {
+            background: var(--card); width: 90%; max-width: 450px; min-height: 550px;
+            padding: 2rem; border-radius: 40px; border: 1px solid #1a1a1a;
+            position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            display: flex; flex-direction: column;
+        }
+
+        .view { display: none; flex-direction: column; height: 100%; width: 100%; flex-grow: 1; }
+        .view.active { display: flex; }
+
+        input {
+            width: 100%; padding: 16px; border-radius: 20px; border: 2px solid #222;
+            background: #000; color: white; font-size: 1.1rem; text-align: center;
+            margin-bottom: 15px; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .btn { width: 100%; padding: 16px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
+        .btn-main { background: var(--primary); color: #000; }
+        .btn-main:disabled { background: #1a1a1a; color: #333; cursor: not-allowed; }
+        .btn-ghost { background: transparent; color: var(--text); border: 1px solid #333; }
+        .btn-vote { background: #1a1a1a; border: 1px solid var(--danger); color: var(--danger); font-size: 0.9rem; }
+
+        .player-tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; }
+        .tag { background: #151515; padding: 6px 15px; border-radius: 15px; font-size: 0.8rem; border: 1px solid #222; color: var(--primary); }
+
+        .secret-box { background: #080808; padding: 20px; border-radius: 25px; margin-bottom: 15px; border: 2px dashed var(--primary); }
+        
+        .chat-area {
+            flex-grow: 1; height: 180px; overflow-y: auto; background: #050505;
+            border-radius: 20px; padding: 15px; margin-bottom: 15px;
+            display: flex; flex-direction: column; gap: 8px; text-align: left;
+        }
+        .chat-msg { font-size: 0.85rem; padding: 8px 12px; border-radius: 12px; background: #151515; border: 1px solid #222; }
+        .chat-msg b { color: var(--primary); }
+
+        #timer-bar { width: 100%; height: 4px; background: #111; margin: 10px 0; border-radius: 5px; overflow: hidden; }
+        #timer-fill { width: 100%; height: 100%; background: var(--primary); transition: width 1s linear; }
+
+        .impostor-text { color: var(--danger); font-weight: 900; font-size: 1.5rem; letter-spacing: 2px; }
+        .footer { font-size: 0.7rem; color: #333; margin-top: 15px; text-align: center; }
+        #results-list { width: 100%; max-height: 200px; overflow-y: auto; margin-bottom: 15px; }
+        .result-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #222; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+    <div id="app-wrapper">
+        <div id="game-box">
+            <!-- LOBBY -->
+            <div id="view-lobby" class="view active">
+                <h1>IMPOSTOR</h1>
+                <p style="color:var(--dim); font-size:0.8rem; margin-bottom:2rem;">Online Freestyle Edition</p>
+                <input type="text" id="player-name" placeholder="Tu apodo de MC...">
+                <div id="lobby-actions">
+                    <button class="btn btn-main" id="btn-host" onclick="setup(true)">CREAR SALA</button>
+                    <button class="btn btn-main" id="btn-join" style="display:none; background:var(--success)" onclick="setup(false)">UNIRSE</button>
+                </div>
+                <div id="view-waiting" style="display:none;">
+                    <p id="copy-link" style="color:var(--primary); font-size:0.7rem; cursor:pointer;" onclick="copyInvite()">🔗 Copiar enlace de invitación</p>
+                    <div id="player-tags" class="player-tags"></div>
+                    <button class="btn btn-main" id="btn-start" onclick="hostInitGame(false)" style="display:none;" disabled>EMPEZAR PARTIDA</button>
+                </div>
+            </div>
+
+            <!-- JUEGO -->
+            <div id="view-game" class="view">
+                <div style="display:flex; justify-content: space-between; align-items:center;">
+                    <div class="badge">RONDA <span id="round-num">1</span>/3</div>
+                    <div id="timer-num" style="color:var(--primary); font-weight:bold;">30s</div>
+                    <div class="badge">TURNO: <b id="turn-name">-</b></div>
+                </div>
+                <div id="timer-bar"><div id="timer-fill"></div></div>
+
+                <div class="secret-box">
+                    <p style="font-size:0.6rem; color:var(--dim); margin:0;">TU OBJETIVO:</p>
+                    <div id="role-display" style="font-size: 1.3rem; font-weight: bold; margin: 5px 0;">-</div>
+                    <div id="reroll-area">
+                        <button id="btn-vote" class="btn btn-ghost" style="padding: 6px; font-size: 0.7rem; width: auto; margin:0;" onclick="sendVote()">
+                            VOTAR CAMBIO (<span id="v-count">0</span>/<span id="v-total">0</span>)
+                        </button>
+                        <div id="vote-timer" style="color:var(--danger); font-size:0.6rem; margin-top:4px;">Cambio disponible: 20s</div>
+                    </div>
+                </div>
+
+                <div class="chat-area" id="game-chat"></div>
+
+                <div id="input-section" style="display: none;">
+                    <input type="text" id="pista-input" placeholder="Escribe tu pista..." maxlength="50">
+                    <button class="btn btn-main" onclick="submitPista()">ENVIAR PISTA</button>
+                </div>
+                <div id="status-msg" style="color: var(--dim); font-size: 0.8rem;">Espera tu turno...</div>
+            </div>
+
+            <!-- VOTACIÓN FINAL -->
+            <div id="view-voting" class="view">
+                <h2 style="color:var(--danger)">VOTACIÓN FINAL</h2>
+                <p style="font-size: 0.8rem; color: var(--dim); margin-bottom:1rem;">¿Quién es el impostor?</p>
+                <div id="vote-players-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+            </div>
+
+            <!-- FINAL -->
+            <div id="view-final" class="view">
+                <h1 id="final-result-title">GANADORES</h1>
+                <div class="secret-box">
+                    <p style="margin:0; font-size:0.7rem;">EL IMPOSTOR ERA:</p>
+                    <b id="final-impostor-name" style="color:var(--danger); font-size:1.5rem;">-</b>
+                    <p style="margin:5px 0 0; font-size:0.7rem;">PALABRA: <span id="final-word" style="color:var(--primary)">-</span></p>
+                </div>
+                <button class="btn btn-main" onclick="location.reload()">REINICIAR</button>
+            </div>
+        </div>
+        <div class="footer">Juego por @erchelsifut · PeerJS P2P</div>
+    </div>
+
+    <script>
+        const FREESTYLERS = ["Wos", "Bnet", "Chuty", "Aczino", "Skone", "Arkano", "Gazir", "Trueno", "Papo", "Dtoke", "Teorema", "Kaiser", "Valles-T", "Zasko", "Blon", "Invert", "Rayden", "Piezas", "Kodigo", "Nitro", "Sony", "Klan", "MKS", "Cacha", "Jaze", "Nekroos", "Rapder", "Lobo Estepario", "RC", "Mecha", "Stuart", "Larrix", "Katra", "Wolf", "Replik", "El Menor", "Pepe Grillo", "Ricto", "Basek", "Hadrián", "Akapellah", "Mcklopedia", "Dominic", "Tata", "Frescolate", "Chester", "Jota", "Link One", "Brock", "Errecé", "BTA", "Dani", "Lit Killah", "Acru", "Yartzi", "DrefQuila", "Mr. Ego", "Jayco", "Stick", "Carlitos", "Danger", "Critofebril", "Sador", "Drose", "Hander", "Mordekai", "JNO", "Dozer", "Jack Adrenalina", "Kapo 013", "Soen", "Elekipo", "Gaviria", "Navalha", "Compare Flow", "Letra", "Walls", "Big Killah", "Babi", "Criterioh", "Joanarman", "Duki", "Choque", "Acertijo", "Eude", "Mowlihawk", "Ecko", "Force", "Sweet Pain", "Sara Socas", "SNK", "Jony Beltrán", "Lokillo", "Azuky", "Exe", "Naista", "Jokker", "Mnak", "Tirpa", "Noult", "Khan", "Jesús LC", "JandJ", "Kensuke", "Teko", "Botta", "Kmbra", "Ehler Danloss", "Cixer", "Coletiyas", "Barón", "Celedonio", "Ante", "Reuto", "Yeah Yon", "Jado", "Jonko", "Jaloner", "Kid Masta", "BHA", "Vivi", "Kabuto", "FJ", "Xinako", "MrKaos", "JS", "Shintoma", "LE33", "Kvron", "Mister", "Nacho LCM", "Mclito", "Aigor", "Mounts", "Robledo", "Zarro", "Neonath", "Negro Freshco", "Nocre", "Nasher", "Longitudinal", "Tader", "Sacro Requiem", "Antrax", "El Puto Coke", "Michu", "JDR", "Eloy393", "McMen", "Giorgio Masplatino", "Titus", "Jodido Pelirrojo", "Mark", "Mario VI", "Tito Soul", "Eskape", "Efe R", "Wader", "SRK", "NQP", "Exfimo", "Fabiuki", "Emblema", "Alek", "Nez", "Marithea", "MC Kim", "Kharma", "Erika Dos Santos", "Joaqui", "Stigma", "Metalingüística", "Blackcode"];
+
+        let peer, conn, myName = "", isHost = false, players = [], secretWord = "", impostorId = "";
+        let gameState = { round: 1, turnIndex: 0, log: [] };
+        let rerollVotes = [], voteTime = 20, roundTime = 30;
+        let timerInt, ambientInt, gameClockInt;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        if(roomId) { document.getElementById('btn-host').style.display = 'none'; document.getElementById('btn-join').style.display = 'block'; }
+
+        // --- AUDIO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSnd(f, v, d) {
+            try {
+                const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+                o.frequency.setValueAtTime(f, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
+                o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + d);
+            } catch(e){}
+        }
+
+        function startAmbient() {
+            clearInterval(ambientInt);
+            const scale = [261.63, 329.63, 392.00, 440.00];
+            ambientInt = setInterval(() => {
+                const f = scale[Math.floor(Math.random() * scale.length)] / 2;
+                playSnd(f, 0.02, 2.5);
+            }, 200);
+        }
+
+        // --- NETWORK ---
+        function setup(hostMode) {
+            myName = document.getElementById('player-name').value.trim();
+            if(!myName) return alert("Ponte nombre");
+            isHost = hostMode;
+            peer = new Peer();
+            peer.on('open', (id) => {
+                startAmbient();
+                document.getElementById('lobby-actions').style.display = 'none';
+                document.getElementById('view-waiting').style.display = 'flex';
+                if(isHost) {
+                    players = [{id: id, name: myName, conn: null}];
+                    updateLobbyUI();
+                    document.getElementById('btn-start').style.display = 'block';
+                } else {
+                    conn = peer.connect(roomId);
+                    setupConn(conn);
+                }
+            });
+            peer.on('connection', setupConn);
+        }
+
+        function setupConn(c) {
+            c.on('open', () => { if(!isHost) c.send({type: 'JOIN', name: myName}); });
+            c.on('close', () => {
+                players = players.filter(p => p.id !== c.peer);
+                if(isHost) broadcast({type: 'SYNC_PLAYERS', list: players.map(p => ({id: p.id, name: p.name}))});
+                updateLobbyUI();
+            });
+            c.on('data', (data) => {
+                if(isHost && data.type === 'JOIN') {
+                    if (!players.find(p => p.id === c.peer)) players.push({id: c.peer, name: data.name, conn: c});
+                    broadcast({type: 'SYNC_PLAYERS', list: players.map(p => ({id: p.id, name: p.name}))});
+                    updateLobbyUI();
+                }
+                if(data.type === 'SYNC_PLAYERS') { players = data.list; updateLobbyUI(); }
+                if(data.type === 'START_GAME' || data.type === 'WORD_REROLL') {
+                    impostorId = data.impostorId; secretWord = data.word; players = data.players;
+                    gameState = { round: 1, turnIndex: 0, log: [] };
+                    if(data.type === 'WORD_REROLL') rerollVotes = [];
+                    showView('game'); renderGame();
+                }
+                if(data.type === 'SYNC_STATE') { gameState = data.state; renderGame(); }
+                if(data.type === 'VOTE_TALLY') { rerollVotes = data.votes; document.getElementById('v-count').textContent = rerollVotes.length; }
+                if(data.type === 'VOTE_TIMER') { 
+                    voteTime = data.time; document.getElementById('vote-timer').textContent = `Tiempo: ${voteTime}s`;
+                    if(voteTime <= 0) document.getElementById('reroll-section').style.display = 'none';
+                }
+                if(data.type === 'GOTO_VOTING') showView('voting');
+                if(data.type === 'FINAL_REVEAL') showFinal(data.winner, data.impostorName, data.word);
+
+                if(isHost) {
+                    if(data.type === 'VOTE_SUBMIT') {
+                        if(!rerollVotes.includes(data.from)) rerollVotes.push(data.from);
+                        broadcast({type:'VOTE_TALLY', votes: rerollVotes});
+                        if(rerollVotes.length >= players.length) hostPreparesGame(true);
+                    }
+                    if(data.type === 'PISTA_SUBMIT') processTurn(data.user, data.text);
+                    if(data.type === 'FINAL_VOTE') handleFinalVote(data.voteId);
+                }
+            });
+        }
+
+        function broadcast(data) { players.forEach(p => p.conn && p.conn.send(data)); }
+
+        // --- GAME LOGIC ---
+        function hostPreparesGame(isReroll = false) {
+            if(!isReroll) impostorId = players[Math.floor(Math.random()*players.length)].id;
+            const word = FREESTYLERS[Math.floor(Math.random()*FREESTYLERS.length)];
+            rerollVotes = []; voteTime = 20;
+
+            players.forEach(p => {
+                const payload = {
+                    type: isReroll ? 'WORD_REROLL' : 'START_GAME',
+                    impostorId: impostorId,
+                    players: players.map(pl => ({id: pl.id, name: pl.name})),
+                    word: (p.id === impostorId) ? null : word
+                };
+                if(p.id === peer.id) { secretWord = payload.word; showView('game'); renderGame(); }
+                else if(p.conn) p.conn.send(payload);
+            });
+            startVoteTimer();
+        }
+
+        function startVoteTimer() {
+            clearInterval(timerInt);
+            timerInt = setInterval(() => {
+                voteTime--; broadcast({type: 'VOTE_TIMER', time: voteTime});
+                document.getElementById('vote-timer').textContent = `Tiempo: ${voteTime}s`;
+                if(voteTime <= 0) { clearInterval(timerInt); document.getElementById('reroll-section').style.display = 'none'; }
+            }, 1000);
+        }
+
+        function renderGame() {
+            document.body.classList.remove('critical-mode');
+            document.getElementById('round-num').textContent = gameState.round;
+            const pTurn = players[gameState.turnIndex];
+            document.getElementById('turn-name').textContent = pTurn ? pTurn.name : "-";
+            
+            const display = document.getElementById('role-display');
+            if(secretWord === null) {
+                display.textContent = "ERES EL IMPOSTOR";
+                display.className = "impostor-text";
+            } else {
+                display.textContent = secretWord.toUpperCase();
+                display.className = "";
+            }
+
+            const chat = document.getElementById('game-chat');
+            chat.innerHTML = gameState.log.map(m => `<div class="chat-msg"><b>${m.user}:</b> ${m.text}</div>`).join('');
+            chat.scrollTop = chat.scrollHeight;
+
+            if(gameState.round > 3) {
+                if(isHost) { setTimeout(()=>broadcast({type:'GOTO_VOTING'}), 2000); showView('voting'); }
+                return;
+            }
+
+            const isMyTurn = (pTurn && peer.id === pTurn.id);
+            document.getElementById('input-section').style.display = isMyTurn ? 'block' : 'none';
+            document.getElementById('status-msg').style.display = isMyTurn ? 'none' : 'block';
+            
+            if(isMyTurn) {
+                startRoundClock();
+                document.getElementById('pista-input').focus();
+            } else {
+                clearInterval(gameClockInt);
+            }
+        }
+
+        function startRoundClock() {
+            roundTime = 30;
+            clearInterval(gameClockInt);
+            gameClockInt = setInterval(() => {
+                roundTime--;
+                document.getElementById('timer-num').textContent = roundTime + "s";
+                document.getElementById('timer-fill').style.width = (roundTime/30*100) + "%";
+                if(roundTime <= 5) document.body.classList.add('critical-mode');
+                if(roundTime <= 0) { clearInterval(gameClockInt); submitPista(); }
+            }, 1000);
+        }
+
+        function submitPista() {
+            const val = document.getElementById('pista-input').value.trim();
+            const finalPista = val || "(Sin rima)";
+            
+            if(secretWord && val.toLowerCase().includes(secretWord.toLowerCase())) {
+                alert("No puedes escribir el nombre"); return;
+            }
+
+            if(isHost) processTurn(myName, finalPista);
+            else conn.send({type: 'PISTA_SUBMIT', user: myName, text: finalPista});
+            document.getElementById('pista-input').value = "";
+        }
+
+        function processTurn(user, text) {
+            gameState.log.push({user, text});
+            gameState.turnIndex++;
+            if(gameState.turnIndex >= players.length) {
+                gameState.turnIndex = 0;
+                gameState.round++;
+            }
+            broadcast({type: 'SYNC_STATE', state: gameState});
+            renderGame();
+        }
+
+        function sendVote() {
+            document.getElementById('btn-vote').disabled = true;
+            if(isHost) {
+                if(!rerollVotes.includes(peer.id)) rerollVotes.push(peer.id);
+                broadcast({type: 'VOTE_TALLY', votes: rerollVotes});
+                if(rerollVotes.length >= players.length) hostPreparesGame(true);
+            } else conn.send({type: 'VOTE_SUBMIT', from: peer.id});
+        }
+
+        // --- VOTACION FINAL ---
+        let finalVotes = {};
+        function showView(v) {
+            document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
+            document.getElementById('view-' + v).classList.add('active');
+            if(v === 'voting') {
+                const list = document.getElementById('vote-players-list');
+                list.innerHTML = players.map(p => `
+                    <button class="btn btn-vote" onclick="castFinalVote('${p.id}')">${p.name}</button>
+                `).join('');
+            }
+        }
+
+        function castFinalVote(targetId) {
+            document.getElementById('view-voting').innerHTML = "<h2>VOTO ENVIADO</h2><p>Esperando al resto...</p>";
+            if(isHost) handleFinalVote(targetId);
+            else conn.send({type: 'FINAL_VOTE', voteId: targetId});
+        }
+
+        let votesReceived = 0;
+        function handleFinalVote(vId) {
+            finalVotes[vId] = (finalVotes[vId] || 0) + 1;
+            votesReceived++;
+            if(votesReceived >= players.length) {
+                let mostVotedId = Object.keys(finalVotes).reduce((a, b) => finalVotes[a] > finalVotes[b] ? a : b);
+                const win = (mostVotedId === impostorId);
+                const impName = players.find(p => p.id === impostorId).name;
+                broadcast({type: 'FINAL_REVEAL', winner: win, impostorName: impName, word: secretWord});
+                showFinal(win, impName, secretWord);
+            }
+        }
+
+        function showFinal(win, name, word) {
+            showView('final');
+            document.getElementById('final-result-title').textContent = win ? "¡CIUDADANOS GANAN!" : "¡EL IMPOSTOR GANA!";
+            document.getElementById('final-result-title').style.color = win ? "var(--success)" : "var(--danger)";
+            document.getElementById('final-impostor-name').textContent = name;
+            document.getElementById('final-word').textContent = word || "(Oculto)";
+        }
+
+        function updateLobbyUI() {
+            document.getElementById('player-tags').innerHTML = players.map(p => `<div class="tag">${p.name}</div>`).join('');
+            if(isHost) document.getElementById('btn-start').disabled = players.length < 3;
+            document.getElementById('v-total').textContent = players.length;
+        }
+
+        function copyInvite() {
+            const url = `${window.location.origin}${window.location.pathname}?room=${peer.id}`;
+            const el = document.createElement('textarea'); el.value = url; document.body.appendChild(el); el.select();
+            document.execCommand('copy'); document.body.removeChild(el);
+            alert("¡Enlace Copiado!");
+        }
+    </script>
+</body>
+</html>
