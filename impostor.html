@@ -23,29 +23,19 @@
         body {
             background-color: var(--bg); margin: 0; min-height: 100vh;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: var(--text); overflow: hidden;
+            color: var(--text); overflow-x: hidden; transition: box-shadow 0.5s ease;
         }
 
-        .ai-warning {
-            background: #1a1a1a; color: #888; padding: 5px 15px; font-size: 0.75rem;
-            border-radius: 0 0 10px 15px; position: fixed; top: 0; z-index: 3000;
-        }
+        body.critical-mode { box-shadow: inset 0 0 150px rgba(255, 68, 68, 0.4); }
 
-        /* Contenedor Limpio */
         #app-wrapper {
-            background: var(--card);
-            width: 90%;
-            max-width: 450px;
-            min-height: 500px;
-            padding: 2rem;
-            border-radius: 40px;
-            border: 1px solid #1a1a1a;
-            position: relative;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-            overflow: hidden;
+            background: var(--card); width: 90%; max-width: 450px; min-height: 550px;
+            padding: 2rem; border-radius: 40px; border: 1px solid #1a1a1a;
+            position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            display: flex; flex-direction: column;
         }
 
-        .view { display: none; flex-direction: column; height: 100%; width: 100%; }
+        .view { display: none; flex-direction: column; height: 100%; width: 100%; flex-grow: 1; }
         .view.active { display: flex; }
 
         h1 { font-size: 2.2rem; margin: 0; color: var(--primary); }
@@ -54,7 +44,7 @@
         input {
             width: 100%; padding: 16px; border-radius: 20px; border: 2px solid #222;
             background: #000; color: white; font-size: 1.1rem; text-align: center;
-            margin-bottom: 15px; outline: none;
+            margin-bottom: 15px; outline: none; transition: 0.3s;
         }
         input:focus { border-color: var(--primary); }
 
@@ -67,8 +57,8 @@
         .btn-ghost { background: transparent; color: var(--text); border: 1px solid #333; }
         .btn:disabled { opacity: 0.2; cursor: not-allowed; }
 
-        .player-tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; }
-        .tag { background: #151515; padding: 6px 15px; border-radius: 15px; font-size: 0.8rem; border: 1px solid #222; }
+        .player-tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; min-height: 40px; }
+        .tag { background: #151515; padding: 6px 15px; border-radius: 15px; font-size: 0.8rem; border: 1px solid #222; color: var(--primary); }
 
         .secret-box {
             background: #080808; padding: 20px; border-radius: 25px;
@@ -76,44 +66,38 @@
         }
 
         .chat-area {
-            flex-grow: 1; height: 200px; overflow-y: auto; background: #050505;
+            flex-grow: 1; height: 180px; overflow-y: auto; background: #050505;
             border-radius: 20px; padding: 15px; margin-bottom: 15px;
             display: flex; flex-direction: column; gap: 8px; text-align: left;
         }
         .chat-msg { font-size: 0.85rem; padding: 8px 12px; border-radius: 12px; background: #151515; border: 1px solid #222; }
         .chat-msg b { color: var(--primary); }
 
-        #copy-info { color: var(--primary); font-size: 0.75rem; cursor: pointer; margin-bottom: 15px; display: block; }
         .impostor-alert { color: var(--danger); font-weight: 900; }
-        
         .footer { font-size: 0.7rem; color: #333; margin-top: 15px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="ai-warning">⚠️ La página está hecha con la ayuda de una inteligencia artificial ⚠️</div>
-
     <div id="app-wrapper">
         
-        <!-- VISTA: LOBBY / UNIRSE -->
+        <!-- VISTA: LOBBY -->
         <div id="view-lobby" class="view active">
             <h1>IMPOSTOR</h1>
             <p class="subtitle">Freestyle Edition</p>
             
             <input type="text" id="player-name" placeholder="Tu apodo de MC...">
             
-            <div id="lobby-initial">
-                <button class="btn btn-main" onclick="startHost()">CREAR SALA</button>
-                <div id="join-container" style="display: none;">
-                    <button class="btn btn-main" style="background: var(--success);" onclick="startJoin()">UNIRSE A LA SALA</button>
-                </div>
+            <div id="lobby-actions">
+                <button class="btn btn-main" id="btn-create-lobby" onclick="setupPeer(true)">CREAR SALA</button>
+                <button class="btn btn-main" id="btn-join-lobby" style="display:none; background: var(--success);" onclick="setupPeer(false)">UNIRSE A LA SALA</button>
             </div>
 
             <div id="view-waiting" style="display: none;">
-                <span id="copy-info" onclick="copyInviteLink()">🔗 Copiar enlace de invitación</span>
+                <p id="copy-info" style="color: var(--primary); font-size: 0.75rem; cursor: pointer; margin-bottom: 15px;" onclick="copyInviteLink()">🔗 Copiar enlace de invitación</p>
                 <div id="player-tags" class="player-tags"></div>
                 <p id="wait-text" style="font-size: 0.8rem; color: var(--dim);">Esperando jugadores...</p>
-                <button class="btn btn-main" id="btn-start" onclick="hostPreparesGame()" style="display:none;" disabled>EMPEZAR PARTIDA</button>
+                <button class="btn btn-main" id="btn-start" onclick="hostStartsGame()" style="display:none;" disabled>EMPEZAR PARTIDA</button>
             </div>
         </div>
 
@@ -129,7 +113,7 @@
                 <div id="role-display" style="font-size: 1.3rem; font-weight: bold; margin: 5px 0;">-</div>
                 
                 <div id="reroll-section">
-                    <button id="btn-vote" class="btn btn-ghost" style="padding: 8px; font-size: 0.7rem; margin: 0;" onclick="sendVote()">
+                    <button id="btn-vote" class="btn btn-ghost" style="padding: 8px; font-size: 0.7rem; margin: 0; width: auto;" onclick="sendVote()">
                         VOTAR CAMBIO (<span id="v-count">0</span>/<span id="v-total">0</span>)
                     </button>
                     <div id="vote-timer" style="color: var(--danger); font-size: 0.7rem; margin-top: 5px;">Tiempo: 20s</div>
@@ -155,124 +139,113 @@
         let gameState = { round: 1, turnIndex: 0, log: [] };
         let voteTimer;
 
-        // Detectar si hay ID de sala en la URL
+        // URL Check
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('room');
         if(roomId) {
-            document.querySelector('button[onclick="startHost()"]').style.display = 'none';
-            document.getElementById('join-container').style.display = 'block';
+            document.getElementById('btn-create-lobby').style.display = 'none';
+            document.getElementById('btn-join-lobby').style.display = 'block';
         }
 
-        function startHost() {
+        function setupPeer(hostMode) {
             myName = document.getElementById('player-name').value.trim();
-            if(!myName) return alert("Escribe tu nombre");
-            isHost = true;
-            initPeer();
-        }
-
-        function startJoin() {
-            myName = document.getElementById('player-name').value.trim();
-            if(!myName) return alert("Escribe tu nombre");
-            isHost = false;
-            initPeer(roomId);
-        }
-
-        function initPeer(targetId = null) {
+            if(!myName) return alert("Ponte un apodo");
+            isHost = hostMode;
+            
             peer = new Peer();
             peer.on('open', (id) => {
-                document.getElementById('lobby-initial').style.display = 'none';
+                document.getElementById('lobby-actions').style.display = 'none';
                 document.getElementById('view-waiting').style.display = 'flex';
                 
                 if(isHost) {
-                    players.push({id: id, name: myName});
-                    document.getElementById('room-link-display').style.display = 'block';
+                    players.push({id: id, name: myName, conn: null});
                     document.getElementById('btn-start').style.display = 'block';
-                    updateLobby();
+                    document.getElementById('copy-info').style.display = 'block';
+                    updateLobbyUI();
                 } else {
-                    conn = peer.connect(targetId);
-                    conn.on('open', () => {
-                        conn.send({type: 'JOIN', name: myName});
-                    });
-                    conn.on('data', handleData);
+                    conn = peer.connect(roomId);
+                    setupConnection(conn);
                 }
             });
 
             peer.on('connection', (c) => {
-                c.on('data', (data) => {
-                    if(isHost && data.type === 'JOIN') {
-                        players.push({id: c.peer, name: data.name, conn: c});
-                        broadcast({type: 'PLAYER_LIST', players: players.map(p => ({name: p.name}))});
-                        updateLobby();
-                    }
-                    handleData(data);
-                });
+                setupConnection(c);
             });
         }
 
-        function handleData(data) {
-            if(data.type === 'PLAYER_LIST') { players = data.players; updateLobby(); }
-            if(data.type === 'START_GAME' || data.type === 'WORD_REROLL') {
-                impostorId = data.impostorId;
-                secretWord = data.word; // Será null para el impostor
-                players = data.players;
-                if(data.type === 'WORD_REROLL') {
-                    gameState = { round: 1, turnIndex: 0, log: [{user:"SISTEMA", text:"¡Palabra cambiada!"}] };
-                    rerollVotes = [];
-                    document.getElementById('btn-vote').disabled = false;
+        function setupConnection(c) {
+            c.on('open', () => {
+                if(!isHost) c.send({type: 'JOIN', name: myName});
+            });
+
+            c.on('data', (data) => {
+                // El Host recibe a un nuevo jugador
+                if(isHost && data.type === 'JOIN') {
+                    players.push({id: c.peer, name: data.name, conn: c});
+                    // Sincronizar a TODOS
+                    broadcast({type: 'SYNC_PLAYERS', list: players.map(p => ({name: p.name}))});
+                    updateLobbyUI();
                 }
-                showGameUI();
-            }
-            if(data.type === 'SYNC_STATE') { gameState = data.state; updateGameUI(); }
-            if(data.type === 'VOTE_TALLY') {
-                rerollVotes = data.votes;
-                document.getElementById('v-count').textContent = rerollVotes.length;
-            }
-            if(data.type === 'VOTE_TIMER') {
-                voteTime = data.time;
-                document.getElementById('timer-vote').textContent = `Tiempo: ${voteTime}s`;
-                if(voteTime <= 0) document.getElementById('reroll-section').style.display = 'none';
-            }
-            if(isHost) {
-                if(data.type === 'VOTE_SUBMIT') {
-                    if(!rerollVotes.includes(data.from)) rerollVotes.push(data.from);
-                    broadcast({type: 'VOTE_TALLY', votes: rerollVotes});
-                    if(rerollVotes.length >= players.length) hostPreparesGame(true);
+
+                // Los clientes reciben la lista sincronizada
+                if(data.type === 'SYNC_PLAYERS') {
+                    players = data.list;
+                    updateLobbyUI();
                 }
-                if(data.type === 'MSG_SUBMIT') processTurn(data.user, data.text);
-            }
+
+                if(data.type === 'START_GAME' || data.type === 'REROLL_WORD') {
+                    impostorId = data.impostorId;
+                    secretWord = data.word; // null para impostor
+                    players = data.players;
+                    gameState = { round: 1, turnIndex: 0, log: [] };
+                    if(data.type === 'REROLL_WORD') {
+                        rerollVotes = [];
+                        document.getElementById('btn-vote').disabled = false;
+                    }
+                    showGameUI();
+                }
+
+                if(data.type === 'SYNC_STATE') { gameState = data.state; updateGameUI(); }
+                
+                if(data.type === 'SYNC_VOTES') {
+                    rerollVotes = data.votes;
+                    document.getElementById('v-count').textContent = rerollVotes.length;
+                }
+
+                if(isHost) {
+                    if(data.type === 'VOTE_SUBMIT') {
+                        if(!rerollVotes.includes(data.from)) rerollVotes.push(data.from);
+                        broadcast({type: 'SYNC_VOTES', votes: rerollVotes});
+                        if(rerollVotes.length >= players.length) hostStartsGame(true);
+                    }
+                    if(data.type === 'PISTA_SUBMIT') processTurn(data.user, data.text);
+                }
+            });
         }
 
-        function broadcast(data) { players.forEach(p => p.conn && p.conn.send(data)); }
+        function broadcast(data) {
+            players.forEach(p => { if(p.conn) p.conn.send(data); });
+        }
 
-        function updateLobby() {
+        function updateLobbyUI() {
             document.getElementById('player-tags').innerHTML = players.map(p => `<div class="tag">${p.name}</div>`).join('');
             if(isHost) document.getElementById('btn-start').disabled = players.length < 3;
+            document.getElementById('v-total').textContent = players.length;
         }
 
-        function copyInviteLink() {
-            const url = `${window.location.origin}${window.location.pathname}?room=${peer.id}`;
-            const el = document.createElement('textarea');
-            el.value = url; document.body.appendChild(el); el.select();
-            document.execCommand('copy'); document.body.removeChild(el);
-            document.getElementById('copy-info').textContent = "✅ ¡Enlace Copiado!";
-            setTimeout(() => document.getElementById('copy-info').textContent = "🔗 Copiar enlace de invitación", 2000);
-        }
-
-        // GAME LOGIC
-        function hostPreparesGame(isReroll = false) {
+        function hostStartsGame(isReroll = false) {
             if(!isReroll) impostorId = players[Math.floor(Math.random()*players.length)].id;
-            const newWord = FREESTYLERS[Math.floor(Math.random()*FREESTYLERS.length)];
+            const word = FREESTYLERS[Math.floor(Math.random()*FREESTYLERS.length)];
             
-            voteTime = 20;
             rerollVotes = [];
-            gameState = { round: 1, turnIndex: 0, log: [] };
+            voteTime = 20;
 
             players.forEach(p => {
                 const payload = {
-                    type: isReroll ? 'WORD_REROLL' : 'START_GAME',
+                    type: isReroll ? 'REROLL_WORD' : 'START_GAME',
                     impostorId: impostorId,
                     players: players.map(pl => ({id: pl.id, name: pl.name})),
-                    word: (p.id === impostorId) ? null : newWord
+                    word: (p.id === impostorId) ? null : word
                 };
                 if(p.id === peer.id) {
                     secretWord = payload.word;
@@ -288,7 +261,6 @@
             clearInterval(voteTimer);
             voteTimer = setInterval(() => {
                 voteTime--;
-                broadcast({type: 'VOTE_TIMER', time: voteTime});
                 document.getElementById('timer-vote').textContent = `Tiempo: ${voteTime}s`;
                 if(voteTime <= 0) {
                     clearInterval(voteTimer);
@@ -298,17 +270,16 @@
         }
 
         function showGameUI() {
-            document.getElementById('view-lobby').classList.remove('active');
+            document.getElementById('view-lobby').style.display = 'none';
             document.getElementById('view-game').classList.add('active');
-            document.getElementById('v-total').textContent = players.length;
             
-            const display = document.getElementById('role-display');
+            const roleDisp = document.getElementById('role-display');
             if(secretWord === null) {
-                display.textContent = "ERES EL IMPOSTOR";
-                display.className = "impostor-alert";
+                roleDisp.textContent = "ERES EL IMPOSTOR";
+                roleDisp.className = "impostor-alert";
             } else {
-                display.textContent = secretWord.toUpperCase();
-                display.className = "";
+                roleDisp.textContent = secretWord.toUpperCase();
+                roleDisp.className = "";
             }
             updateGameUI();
         }
@@ -317,8 +288,8 @@
             document.getElementById('btn-vote').disabled = true;
             if(isHost) {
                 if(!rerollVotes.includes(peer.id)) rerollVotes.push(peer.id);
-                broadcast({type: 'VOTE_TALLY', votes: rerollVotes});
-                if(rerollVotes.length >= players.length) hostPreparesGame(true);
+                broadcast({type: 'SYNC_VOTES', votes: rerollVotes});
+                if(rerollVotes.length >= players.length) hostStartsGame(true);
             } else conn.send({type: 'VOTE_SUBMIT', from: peer.id});
         }
 
@@ -333,7 +304,7 @@
 
             if(gameState.round > 3) {
                 document.getElementById('input-section').style.display = 'none';
-                document.getElementById('status-msg').innerHTML = `<b style="color:var(--primary)">FIN</b><br>La palabra era: ${secretWord || '(Oculta)'}`;
+                document.getElementById('status-msg').innerHTML = `<b style="color:var(--primary)">FIN DE PARTIDA</b>`;
                 return;
             }
 
@@ -347,7 +318,7 @@
             const text = input.value.trim();
             if(!text) return;
             if(isHost) processTurn(myName, text);
-            else conn.send({type:'MSG_SUBMIT', user: myName, text: text});
+            else conn.send({type:'PISTA_SUBMIT', user: myName, text: text});
             input.value = "";
         }
 
@@ -360,6 +331,14 @@
             }
             broadcast({type:'SYNC_STATE', state: gameState});
             updateGameUI();
+        }
+
+        function copyInviteLink() {
+            const url = `${window.location.origin}${window.location.pathname}?room=${peer.id}`;
+            navigator.clipboard.writeText(url).then(() => {
+                document.getElementById('copy-info').textContent = "✅ ¡Enlace Copiado!";
+                setTimeout(() => document.getElementById('copy-info').textContent = "🔗 Copiar enlace de invitación", 2000);
+            });
         }
     </script>
 </body>
