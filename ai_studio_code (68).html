@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhyme Studio - Freestyle Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --card: #161b22;
+            --primary: #ffcd75; 
+            --secondary: #3fb4c1; 
+            --danger: #ff5e5e;
+            --success: #63c64d;
+            --text: #f4f4f4;
+            --dim: #30363d;
+        }
+
+        * { box-sizing: border-box; font-family: 'Quicksand', sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--text);
+            overflow-x: hidden;
+            transition: background 0.5s ease;
+        }
+
+        body.critical-mode { box-shadow: inset 0 0 150px rgba(255, 94, 94, 0.3); background-color: #1a0a0a; }
+
+        #game-box {
+            background: var(--card);
+            width: 95%;
+            max-width: 800px;
+            padding: 2rem;
+            border-radius: 30px;
+            border: 4px solid var(--dim);
+            text-align: center;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); z-index: 1000; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; border-radius: 25px; padding: 1.5rem;
+        }
+
+        .stats { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: 700; }
+        .badge { background: #0b0e14; padding: 8px 15px; border-radius: 12px; border: 1px solid var(--dim); font-size: 0.9rem; color: var(--primary); }
+
+        #rhyme-display {
+            font-size: 1.1rem;
+            line-height: 2.2;
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            background: rgba(0,0,0,0.4);
+            padding: 25px;
+            border-radius: 20px;
+            min-height: 120px;
+        }
+
+        .word { display: flex; gap: 3px; margin-right: 15px; }
+        .letter {
+            width: 22px;
+            height: 32px;
+            border-bottom: 2px solid var(--dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .letter.revealed { border-bottom: 2px solid var(--secondary); color: var(--secondary); animation: pop 0.2s ease; }
+
+        @keyframes pop { from { transform: scale(1.2); } to { transform: scale(1); } }
+
+        #keyboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(35px, 1fr)); gap: 6px; margin: 20px 0; }
+        .key {
+            background: #30363d; border: none; color: #fff;
+            padding: 12px 2px; border-radius: 10px; cursor: pointer;
+            font-weight: bold; transition: 0.1s; font-size: 0.9rem;
+        }
+        .key:hover { background: var(--secondary); color: #000; }
+        .key.used { opacity: 0.1; pointer-events: none; }
+
+        .solve-area { margin: 20px 0; display: flex; gap: 10px; }
+        input.solve-input {
+            flex-grow: 1; padding: 15px; border-radius: 15px; border: 2px solid #30363d;
+            background: #0b0e14; color: white; outline: none; font-size: 1rem;
+        }
+
+        .btn { padding: 14px 24px; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-main { background: var(--primary); color: #000; }
+        .btn-ghost { background: transparent; color: var(--dim); border: 1px solid var(--dim); margin-top: 10px; }
+
+        .result-row { padding: 10px; border-bottom: 1px solid #30363d; font-size: 0.9rem; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <div id="game-box">
+        <!-- Pantalla Inicio -->
+        <div id="start-screen" class="overlay">
+            <h1 style="color: var(--primary); font-size: 2.8rem; margin: 0;">RHYME STUDIO</h1>
+            <p style="color: var(--dim); margin-bottom: 2rem;">Beat de Nerso & Verse activado.</p>
+            
+            <button class="btn btn-main" style="width: 280px; margin-bottom:15px" onclick="startGame('easy')">FÁCIL (10 min + 8 Vidas)</button>
+            <button class="btn btn-main" style="width: 280px; background: var(--secondary);" onclick="startGame('hard')">DIFÍCIL (5 min + 5 Vidas)</button>
+        </div>
+
+        <div class="stats">
+            <div class="badge">❤️ <span id="txt-vidas">-</span></div>
+            <div class="badge">⏱️ <span id="txt-timer">00:00</span></div>
+            <div class="badge">⭐ <span id="txt-puntos">0</span></div>
+        </div>
+
+        <div id="battle-info" style="color: var(--primary); font-weight: bold; margin-bottom: 10px; font-size: 0.9rem;"></div>
+        <div id="rhyme-display"></div>
+
+        <div class="solve-area">
+            <input type="text" id="solve-input" class="solve-input" placeholder="¿Te la sabes? Escríbela aquí...">
+            <button class="btn btn-main" onclick="solveRhyme()">ENVIAR</button>
+        </div>
+
+        <div id="keyboard"></div>
+        <button class="btn btn-ghost" onclick="location.reload()">REINICIAR BEAT / SALIR</button>
+
+        <div id="modal-feedback" class="overlay" style="display: none;">
+            <div id="fb-icon" style="font-size: 4rem; margin-bottom: 15px;">🎧</div>
+            <h2 id="fb-title"></h2>
+            <p id="fb-body" style="color: var(--text-dim); margin-bottom: 2rem;"></p>
+            <button class="btn btn-main" id="btn-next" onclick="closeFeedback()">CONTINUAR</button>
+        </div>
+
+        <div id="modal-final" class="overlay" style="display: none;">
+            <h1>SESIÓN TERMINADA</h1>
+            <p id="final-stats" style="color: var(--primary); font-weight: bold;"></p>
+            <div id="results-list" style="width: 100%; max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 15px;"></div>
+            <button class="btn btn-main" style="margin-top:20px" onclick="location.reload()">NUEVA SESIÓN</button>
+        </div>
+    </div>
+
+    <script>
+        const RIMAS_BASE = [
+            { r: "¿Para qué habla de la sexualidad el boludo? si sea gay o no, siempre le rompen el culo", b: "Wos VS Arkano" },
+            { r: "Aunque pierda, esta gente se va a llenar de orgullo, esa es la diferencia entre mi país y el tuyo", b: "Wos VS Aczino" },
+            { r: "Si el diablo no sube al cielo, bajo al infierno a buscarlo", b: "Chuty VS Aczino" },
+            { r: "¿Tú qué vacilabas de ser la superación? si yo entre como reserva y me fui como campeón", b: "Bnet VS Force" },
+            { r: "Si quieres intenta ver cómo fluyo, que soy una tormenta de murmullos, date cuenta que yo te destruyo, soy un ala delta pero del tamaño del Tahuantinsuyo", b: "Jaze VS Kian" },
+            { r: "Me quieren ver partir a tirpa, o partir el pan pa' repartir pa' cuatro o cinco, para los que sirvan", b: "Bnet vs Tirpa" },
+            { r: "El máster va a coger un bate de alambre y arrancarte la carne, a llenar las putas paredes con tu sangre, meterte en un táper y enviarlo por correo a tus padres", b: "Zasko VS Gazir" },
+            { r: "Ay, te molesta mi vocabulario, ¿qué pasó Lobito, no que eras de barrio?", b: "Vijay VS Lobo Estepario" },
+            { r: "Por eso a veces ganas y a veces pierdes, y algunas veces empatas, pero nunca te sorprendes", b: "Alek VS Gazir" },
+            { r: "Tú besaste al freestyle y rápido te marchaste, yo antes de probar sus labios fui su fiel acompañante", b: "Blon VS Skone" },
+            { r: "Si te sientas con un nazi, hay dos nazis en la mesa", b: "Chuty VS Segrelles" },
+            { r: "¿No mames, te la creíste?", b: "Zticma" },
+            { r: "Eri' el heredero de un trono que no existe", b: "Teorema vs El Menor" },
+            { r: "Yo no soy de Granada pero la quiero, fuiste a quitar la anilla pero ya estaba en mi dedo", b: "MNAK VS Gazir" },
+            { r: "Soy Javier Bonet González, planes y castaño, bicampeón de la Redbull batallas de los putos gallos", b: "Bnet vs Dani VK" },
+            { r: "Pa' la gente de La Cebada, la gente que tiene fé, la gente de Malasaña con el que me ensañaré, yo soy el mejor de España, así qué, puta, cállate", b: "Bnet vs Carpediem" },
+            { r: "¿Tú vas a tener más copas? Eres una morosa, nene, a ver cuándo nos devuelves la God Level que nos debes", b: "Skone VS Sara Socas" },
+            { r: "¿Qué queréis, Pikachu, Raichu o Pichu? ¡Te tendrías que haber queda'o en el Machu Picchu!", b: "Zasko VS Arkano" },
+            { r: "Parece Among Us, todos quieren ser el asesino", b: "Aczino VS Mecha" },
+            { r: "Más que Nacho A.K.A Augenuino es lo que manda, y le cambio el apodo, más que Nacho era Nachota Larga", b: "Papo vs Mecha" },
+            { r: "Pues tres FMS, dos Redbull, dos God Level, pa' que te interese, una BDM, una supremacía, y como te presuma me tiro así todo el día", b: "Chuty VS Teorema" },
+            { r: "Sólo estás destacando más por tu edad que por tu talento, tu peor enemigo va a ser el paso del tiempo", b: "Chuty VS Walls" },
+            { r: "¿Eres la casa de Up? Carajo, ¿y la casa de Up por qué está volando hacia abajo?", b: "Bnet vs Blon" },
+            { r: "Me cojo a este hijo de puta, bendiciones pa'l Teorema", b: "Kaiser VS Zticma" },
+            { r: "¿Hablas de Teorema recordando a tu amigo? Lo hubieras apoyado, no lo hubieras sustituido", b: "Zticma VS Kaiser" },
+            { r: "¿Como me va a ganar si no ha dicho nada bueno? ¡si tus punchlines son mis barras de relleno!, Masterchef contra el mejor cocinero, hay más comida en mis sobras que en todo tu plato entero", b: "Gazir VS Nekroos" },
+            { r: "A ver, inténtalo, dale, a ver, a ver, inténtalo, dale, a ver, hacete el malo que te bajo de los pelos y te recontra cago a palos", b: "Klan VS MKS" },
+            { r: "Mira que fácil la vida del enano, la primera vez que vengo, la primera vez que gano", b: "Trueno VS Wolf" },
+            { r: "Adelgacé porque me metí cocaína, de hecho con Walter me metí metanfetamina, también LSD antes de subir arriba, porque hoy estoy teniendo el mejor viaje de mi vida", b: "Force vs Kos" }
+        ];
+
+        let RIMAS = [];
+        let mode = 'hard', idx = 0, lives = 5, points = 0, timeLeft = 0, guessedLetters = [], revealedPositions = [], history = [];
+        let gameTimer, beatInterval;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSfx(freq, type, dur, vol, detune = 0) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + dur);
+        }
+
+        function startBeat() {
+            let step = 0;
+            beatInterval = setInterval(() => {
+                // KICK (Bombo)
+                if (step % 4 === 0 || step === 14) {
+                    playSfx(55, 'sine', 0.4, 0.6);
+                    playSfx(110, 'sine', 0.1, 0.3);
+                }
+                // SNARE (Caja)
+                if (step % 4 === 2) {
+                    playSfx(220, 'triangle', 0.1, 0.3);
+                    const noise = audioCtx.createBufferSource();
+                    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.08, audioCtx.sampleRate);
+                    const data = buf.getChannelData(0);
+                    for(let i=0; i<data.length; i++) data[i] = Math.random() * 2 - 1;
+                    noise.buffer = buf;
+                    const g = audioCtx.createGain();
+                    g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                    noise.connect(g); g.connect(audioCtx.destination);
+                    noise.start();
+                }
+                // PIANO (Jazz chords)
+                if (step % 8 === 0) {
+                    const freqs = step === 0 ? [174.61, 220, 261.63] : [196, 233.08, 293.66];
+                    freqs.forEach(f => playSfx(f, 'sine', 2, 0.04));
+                }
+                step = (step + 1) % 16;
+            }, 250);
+        }
+
+        function normalize(t) {
+            return t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9ñ]/g, "");
+        }
+
+        function startGame(selectedMode) {
+            mode = selectedMode;
+            lives = (mode === 'easy') ? 8 : 5;
+            timeLeft = (mode === 'easy') ? 600 : 300;
+            RIMAS = [...RIMAS_BASE].sort(() => Math.random() - 0.5);
+            audioCtx.resume();
+            startBeat();
+            document.getElementById('start-screen').style.display = 'none';
+            loadLevel();
+            startTimer();
+        }
+
+        function startTimer() {
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                const m = Math.floor(timeLeft / 60);
+                const s = timeLeft % 60;
+                document.getElementById('txt-timer').textContent = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function loadLevel() {
+            if (idx >= RIMAS.length) {
+                endGame();
+                return;
+            }
+            guessedLetters = [];
+            revealedPositions = [];
+
+            if (mode === 'easy') {
+                document.getElementById('battle-info').textContent = RIMAS[idx].b;
+                const words = RIMAS[idx].r.split(" ");
+                words.forEach((word, wordIndex) => {
+                    for (let i = 0; i < word.length; i++) {
+                        if (/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(word[i])) {
+                            revealedPositions.push(`${wordIndex}-${i}`);
+                            break;
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('battle-info').textContent = "BATTLE: ???";
+            }
+
+            renderRhyme();
+            renderKeyboard();
+            updateUI();
+        }
+
+        function renderRhyme() {
+            const container = document.getElementById('rhyme-display');
+            container.innerHTML = "";
+            const words = RIMAS[idx].r.split(" ");
+
+            words.forEach((word, wordIndex) => {
+                const wordDiv = document.createElement('div');
+                wordDiv.className = "word";
+                word.split("").forEach((char, charIndex) => {
+                    const span = document.createElement('div');
+                    span.className = "letter";
+                    const isLetter = /[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(char);
+                    const normChar = normalize(char);
+                    
+                    if (!isLetter) {
+                        span.textContent = char;
+                        span.style.border = "none";
+                    } else {
+                        const revealed = guessedLetters.includes(normChar) || 
+                                         revealedPositions.includes(`${wordIndex}-${charIndex}`);
+                        if (revealed) {
+                            span.textContent = char;
+                            span.classList.add('revealed');
+                        }
+                    }
+                    wordDiv.appendChild(span);
+                });
+                container.appendChild(wordDiv);
+            });
+            checkWinState();
+        }
+
+        function renderKeyboard() {
+            const container = document.getElementById('keyboard');
+            container.innerHTML = "";
+            "abcdefghijklmnñopqrstuvwxyz".split("").forEach(key => {
+                const btn = document.createElement('button');
+                btn.className = "key";
+                if (guessedLetters.includes(key)) btn.classList.add('used');
+                btn.textContent = key.toUpperCase();
+                btn.onclick = () => handleKey(key);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleKey(key) {
+            guessedLetters.push(key);
+            const normalizedRhyme = normalize(RIMAS[idx].r);
+            
+            if (normalizedRhyme.includes(key)) {
+                playSfx(440, 'sine', 0.1, 0.1);
+            } else {
+                lives--;
+                playSfx(80, 'sawtooth', 0.3, 0.2);
+            }
+            
+            renderRhyme();
+            renderKeyboard();
+            updateUI();
+        }
+
+        function solveRhyme() {
+            const input = document.getElementById('solve-input');
+            const cleanUser = normalize(input.value);
+            const cleanTarget = normalize(RIMAS[idx].r);
+
+            if (cleanUser === cleanTarget) {
+                handleWin();
+            } else {
+                lives -= 2;
+                playSfx(60, 'sawtooth', 0.5, 0.3);
+                updateUI();
+                input.value = "";
+                if (lives > 0) alert("¡Incorrecto! -2 vidas.");
+            }
+            input.value = "";
+        }
+
+        function checkWinState() {
+            const words = RIMAS[idx].r.split(" ");
+            let allVisible = true;
+            words.forEach((word, wordIdx) => {
+                word.split("").forEach((char, charIdx) => {
+                    if (/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(char)) {
+                        const norm = normalize(char);
+                        if (!guessedLetters.includes(norm) && !revealedPositions.includes(`${wordIdx}-${charIdx}`)) {
+                            allVisible = false;
+                        }
+                    }
+                });
+            });
+            if (allVisible) handleWin();
+        }
+
+        function handleWin() {
+            points += (lives * 100);
+            history.push({ r: RIMAS[idx].r, ok: true });
+            idx++;
+            showFeedback("🔥", "¡ACERTADA!", "Has fluido como un Pro.");
+        }
+
+        function handleLoss() {
+            history.push({ r: RIMAS[idx].r, ok: false });
+            idx++;
+            showFeedback("💀", "CAÍSTE", "No has completado la sesión.");
+        }
+
+        function updateUI() {
+            document.getElementById('txt-vidas').textContent = lives;
+            document.getElementById('txt-puntos').textContent = points;
+            if (lives <= 2) document.body.classList.add('critical-mode');
+            else document.body.classList.remove('critical-mode');
+            if (lives <= 0) handleLoss();
+        }
+
+        function showFeedback(icon, title, body) {
+            clearInterval(gameTimer);
+            document.getElementById('fb-icon').textContent = icon;
+            document.getElementById('fb-title').textContent = title;
+            document.getElementById('fb-body').textContent = body;
+            document.getElementById('modal-feedback').style.display = 'flex';
+        }
+
+        function closeFeedback() {
+            document.getElementById('modal-feedback').style.display = 'none';
+            loadLevel();
+            if (idx < RIMAS.length) startTimer();
+        }
+
+        function endGame() {
+            clearInterval(gameTimer);
+            clearInterval(beatInterval);
+            document.getElementById('modal-final').style.display = 'flex';
+            const won = history.filter(h => h.ok).length;
+            document.getElementById('final-stats').textContent = `Sesión Finalizada: ${won} de ${history.length} rimas | ${points} pts`;
+            document.getElementById('results-list').innerHTML = history.map(h => `
+                <div class="result-row">
+                    <b style="color:${h.ok ? 'var(--success)' : 'var(--danger)'}">${h.ok ? '[ÉXITO]' : '[FALLO]'}</b> ${h.r}
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
